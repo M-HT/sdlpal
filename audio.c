@@ -264,6 +264,9 @@ AUDIO_OpenDevice(
    case MUSIC_OGG:
 	   gAudioDevice.pMusPlayer = OGG_Init();
 	   break;
+   case MUSIC_SOFTMIDI:
+	   gAudioDevice.pMusPlayer = SOFTMIDI_Init();
+	   break;
    case MUSIC_MIDI:
 	   gAudioDevice.pMusPlayer = NULL;
 	   break;

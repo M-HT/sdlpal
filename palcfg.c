@@ -67,7 +67,7 @@ static const ConfigItem gConfigItems[PALCFG_ALL_MAX] = {
 	{ PALCFG_CLIMIDIPLAYER,     PALCFG_STRING,   "CLIMIDIPlayer",     13, MAKE_VALUE(NULL,     NULL, NULL) },
 };
 
-static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "RAW" };
+static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "RAW", "SOFTMIDI" };
 static const char *opl_types[] = { "DOSBOX", "MAME", "DOSBOXNEW" };
 
 
@@ -348,6 +348,8 @@ PAL_LoadConfig(
 				{
 					if (PAL_HAS_NATIVEMIDI && SDL_strncasecmp(value.sValue, "MIDI", 4) == 0)
 						eMusicType = MUSIC_MIDI;
+					else if (PAL_HAS_SOFTMIDI && SDL_strncasecmp(value.sValue, "SOFTMIDI", 8) == 0)
+						eMusicType = MUSIC_SOFTMIDI;
 					else if (PAL_HAS_MP3 && SDL_strncasecmp(value.sValue, "MP3", 3) == 0)
 						eMusicType = MUSIC_MP3;
 					else if (PAL_HAS_OGG && SDL_strncasecmp(value.sValue, "OGG", 3) == 0)

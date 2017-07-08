@@ -38,6 +38,10 @@ static SDL_Texture       *gpTexture          = NULL;
 static SDL_Texture       *gpTouchOverlay     = NULL;
 static SDL_Rect           gOverlayRect;
 static SDL_Rect           gTextureRect;
+#else
+#ifdef PANDORA
+static SDL_Surface       *gpScreenFinal      = NULL;
+#endif
 #endif
 
 // The real screen surface
@@ -200,6 +204,20 @@ VIDEO_Startup(
    }
 #else
 
+#ifdef PANDORA
+   gpScreenFinal = SDL_SetVideoMode(gConfig.dwScreenWidth, gConfig.dwScreenHeight, 32, PAL_VIDEO_INIT_FLAGS);
+   if (gpScreenFinal == NULL)
+   {
+      return -1;
+   }
+
+   gpScreenReal = SDL_CreateRGBSurface(SDL_SWSURFACE, gConfig.dwScreenWidth, gConfig.dwScreenHeight, 8, 0, 0, 0, 0);
+   if (gpScreenReal == NULL)
+   {
+      VIDEO_Shutdown();
+      return -2;
+   }
+#else
    //
    // Create the screen surface.
    //
@@ -221,6 +239,7 @@ VIDEO_Startup(
    {
       return -1;
    }
+#endif
 
    gpPalette = gpScreenReal->format->palette;
 
@@ -315,13 +334,16 @@ VIDEO_Shutdown(
    {
       SDL_FreePalette(gpPalette);
    }
-#endif
-   gpPalette = NULL;
-
+#else
+#ifdef PANDORA
    if (gpScreenReal != NULL)
    {
       SDL_FreeSurface(gpScreenReal);
    }
+   gpScreenFinal = NULL;
+#endif
+#endif
+   gpPalette = NULL;
    gpScreenReal = NULL;
 }
 
@@ -412,7 +434,10 @@ VIDEO_UpdateScreen(
       dstrect.w = (WORD)((DWORD)(lpRect->w) * gpScreenReal->w / gpScreen->w);
       dstrect.h = (WORD)((DWORD)(lpRect->h) * screenRealHeight / gpScreen->h);
 
-      SDL_SoftStretch(gpScreen, (SDL_Rect *)lpRect, gpScreenReal, &dstrect);
+      if ((dstrect.w != 0) && (dstrect.h != 0))
+      {
+         SDL_SoftStretch(gpScreen, (SDL_Rect *)lpRect, gpScreenReal, &dstrect);
+      }
    }
    else if (g_wShakeTime != 0)
    {
@@ -479,7 +504,12 @@ VIDEO_UpdateScreen(
 #if SDL_VERSION_ATLEAST(2,0,0)
    VIDEO_RenderCopy();
 #else
+#ifdef PANDORA
+    SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+    SDL_Flip(gpScreenFinal);
+#else
    SDL_UpdateRect(gpScreenReal, dstrect.x, dstrect.y, dstrect.w, dstrect.h);
+#endif
 #endif
 
    if (SDL_MUSTLOCK(gpScreenReal))
@@ -527,6 +557,9 @@ VIDEO_SetPalette(
    SDL_SetPalette(gpScreen, SDL_LOGPAL | SDL_PHYSPAL, rgPalette, 0, 256);
    SDL_SetPalette(gpScreenBak, SDL_LOGPAL | SDL_PHYSPAL, rgPalette, 0, 256);
    SDL_SetPalette(gpScreenReal, SDL_LOGPAL | SDL_PHYSPAL, rgPalette, 0, 256);
+#ifdef PANDORA
+   VIDEO_UpdateScreen(NULL);
+#else
 # if defined(PAL_FORCE_UPDATE_ON_PALETTE_SET)
    {
       static UINT32 time = 0;
@@ -537,6 +570,7 @@ VIDEO_SetPalette(
       }
    }
 # endif
+#endif
 #endif
 }
 
@@ -568,6 +602,7 @@ VIDEO_Resize(
 	if (gpTexture == NULL)
 		TerminateOnError("Re-creating texture failed on window resize!\n");
 #else
+#if !defined(PANDORA)
    DWORD                    flags;
    PAL_LARGE SDL_Color      palette[256];
    int                      i;
@@ -585,7 +620,6 @@ VIDEO_Resize(
    //
    flags = gpScreenReal->flags;
 
-   SDL_FreeSurface(gpScreenReal);
    gpScreenReal = SDL_SetVideoMode(w, h, 8, flags);
 
    if (gpScreenReal == NULL)
@@ -597,6 +631,7 @@ VIDEO_Resize(
    }
 
    SDL_SetPalette(gpScreenReal, SDL_PHYSPAL | SDL_LOGPAL, palette, 0, i);
+#endif
    VIDEO_UpdateScreen(NULL);
 #endif
 }
@@ -678,6 +713,7 @@ VIDEO_ToggleFullscreen(
 		gConfig.fFullScreen = TRUE;
 	}
 #else
+#if !defined(PANDORA)
    DWORD                    flags;
    PAL_LARGE SDL_Color      palette[256];
    int                      i;
@@ -714,11 +750,6 @@ VIDEO_ToggleFullscreen(
    }
 
    //
-   // Free the original screen surface
-   //
-   SDL_FreeSurface(gpScreenReal);
-
-   //
    // ... and create a new one
    //
    if (gConfig.dwScreenWidth == 640 && gConfig.dwScreenHeight == 400 && (flags & SDL_FULLSCREEN))
@@ -735,6 +766,7 @@ VIDEO_ToggleFullscreen(
    }
 
    VIDEO_SetPalette(palette);
+#endif
 
    //
    // Update the screen
@@ -774,7 +806,7 @@ VIDEO_SaveScreenshot(
 	ptm = localtime(&tv.tv_sec);
 	sprintf(filename, "%s%04d%02d%02d%02d%02d%02d%03d.bmp", gConfig.pszSavePath, ptm->tm_year + 1900, ptm->tm_mon, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec, (int)(tv.tv_usec / 1000));
 #endif
-	
+
 	//
 	// Save the screenshot.
 	//
@@ -873,7 +905,12 @@ VIDEO_SwitchScreen(
 #if SDL_VERSION_ATLEAST(2, 0, 0)
       VIDEO_RenderCopy();
 #else
+#ifdef PANDORA
+      SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+      SDL_Flip(gpScreenFinal);
+#else
       SDL_UpdateRect(gpScreenReal, 0, 0, gpScreenReal->w, gpScreenReal->h);
+#endif
 #endif
 
 	  if (SDL_MUSTLOCK(gpScreenReal))
@@ -1016,7 +1053,12 @@ VIDEO_FadeScreen(
 #if SDL_VERSION_ATLEAST(2, 0, 0)
             VIDEO_RenderCopy();
 #else
+#ifdef PANDORA
+            SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+            SDL_Flip(gpScreenFinal);
+#else
 			SDL_UpdateRect(gpScreenReal, 0, 0, gpScreenReal->w, gpScreenReal->h);
+#endif
 #endif
             g_wShakeTime--;
          }
@@ -1031,7 +1073,12 @@ VIDEO_FadeScreen(
 #if SDL_VERSION_ATLEAST(2, 0, 0)
             VIDEO_RenderCopy();
 #else
+#ifdef PANDORA
+            SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+            SDL_Flip(gpScreenFinal);
+#else
             SDL_UpdateRect(gpScreenReal, 0, 0, gpScreenReal->w, gpScreenReal->h);
+#endif
 #endif
          }
       }
@@ -1059,7 +1106,7 @@ VIDEO_SetWindowTitle(
 
   Parameters:
 
-    [IN]  lpszTitle - the new caption of the window.
+    [IN]  pszTitle - the new caption of the window.
 
   Return value:
 
@@ -1070,7 +1117,7 @@ VIDEO_SetWindowTitle(
 #if SDL_VERSION_ATLEAST(2,0,0)
 	SDL_SetWindowTitle(gpWindow, pszTitle);
 #else
-	SDL_WM_SetCaption(lpszCaption, NULL);
+	SDL_WM_SetCaption(pszTitle, NULL);
 #endif
 }
 

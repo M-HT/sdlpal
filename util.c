@@ -33,6 +33,7 @@
 #endif
 
 void UTIL_MsgBox(char *string){
+#if SDL_VERSION_ATLEAST(2, 0, 0)
     extern SDL_Window *gpWindow;
     char buffer[300];
     SDL_MessageBoxButtonData buttons[] = { { 0, 0, "OK" } };
@@ -40,6 +41,7 @@ void UTIL_MsgBox(char *string){
     int btnid;
     sprintf(buffer, "%s\n", string);
     SDL_ShowMessageBox(&mbd, &btnid);
+#endif
 }
 
 long

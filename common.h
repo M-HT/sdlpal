@@ -162,7 +162,7 @@ typedef const WCHAR        *LPCWSTR;
 # define PAL_C_LINKAGE_END
 #endif
 
-/* When porting SDLPAL to a new platform, please make a separate directory and put a file 
+/* When porting SDLPAL to a new platform, please make a separate directory and put a file
    named 'pal_config.h' that contains marco definitions & header includes into the directory.
    The example of this file can be found in directories of existing portings.
  */
@@ -191,6 +191,9 @@ typedef const WCHAR        *LPCWSTR;
 #endif
 #ifndef PAL_HAS_OGG
 # define PAL_HAS_OGG          1   /* Try always enable OGG. If compilation/run failed, please change this value to 0. */
+#endif
+#ifndef PAL_HAS_SOFTMIDI
+# define PAL_HAS_SOFTMIDI     1   /* Try always enable SOFTMIDI. If compilation/run failed, please change this value to 0. */
 #endif
 
 #ifndef PAL_CONFIG_PREFIX

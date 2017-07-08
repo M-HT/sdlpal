@@ -22,8 +22,38 @@
 
 #include "main.h"
 
+#if PAL_HAS_NATIVEMIDI
 static int  g_iMidiCurrent = -1;
 static NativeMidiSong *g_pMidi = NULL;
+static int  g_iFirstRun = 1;
+static const char *g_pMusicsDir = NULL;
+
+#if !defined( _WIN32)
+#include <sys/stat.h>
+#endif
+
+static char const *check_directory(char const *dirname)
+{
+	if (dirname == NULL) return NULL;
+	if (*dirname == 0) return NULL;
+
+#ifdef _WIN32
+	DWORD dwAttrib;
+
+	dwAttrib = GetFileAttributesA(dirname);
+	if ((dwAttrib == INVALID_FILE_ATTRIBUTES) || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
+	{
+		return NULL;
+	}
+#else
+	struct stat st;
+	if (0 != stat(dirname, &st)) return NULL;
+	if (!S_ISDIR(st.st_mode)) return NULL;
+#endif
+
+	return dirname;
+}
+#endif
 
 void
 MIDI_Play(
@@ -51,9 +81,25 @@ MIDI_Play(
 		return;
 	}
 
-	if (gConfig.fIsWIN95)
+	if (g_iFirstRun)
 	{
-		g_pMidi = native_midi_loadsong(va("%sMusics/%.3d.mid", gConfig.pszGamePath, iNumRIX));
+		g_iFirstRun = 0;
+		if (check_directory(va("%s%s", gConfig.pszGamePath, "Musics"))) g_pMusicsDir = "Musics";
+#if !defined(PAL_FILESYSTEM_IGNORE_CASE) || !PAL_FILESYSTEM_IGNORE_CASE
+		else if (check_directory(va("%s%s", gConfig.pszGamePath, "musics"))) g_pMusicsDir = "musics";
+		else if (check_directory(va("%s%s", gConfig.pszGamePath, "MUSICS"))) g_pMusicsDir = "MUSICS";
+#endif
+	}
+
+	if (gConfig.fIsWIN95 && g_pMusicsDir)
+	{
+		g_pMidi = native_midi_loadsong(va("%s%s/%.3d.mid", gConfig.pszGamePath, g_pMusicsDir, iNumRIX));
+#if !defined(PAL_FILESYSTEM_IGNORE_CASE) || !PAL_FILESYSTEM_IGNORE_CASE
+		if (!g_pMidi)
+		{
+			g_pMidi = native_midi_loadsong(va("%s%s/%.3d.MID", gConfig.pszGamePath, g_pMusicsDir, iNumRIX));
+		}
+#endif
 	}
 
 	if (!g_pMidi)
@@ -64,7 +110,7 @@ MIDI_Play(
 
 		if ((fp = UTIL_OpenFile("midi.mkf")) != NULL)
 		{
-			
+
 			if ((size = PAL_MKFGetChunkSize(iNumRIX, fp)) > 0 &&
 				(buf = (uint8_t*)UTIL_malloc(size)))
 			{
