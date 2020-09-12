@@ -96,6 +96,11 @@ Revision History:
 #include <math.h>
 #include <algorithm>
 
+#ifdef GP2X
+#define constexpr const
+#define nullptr NULL
+#endif
+
 /* output final shift */
 #if (OPL_SAMPLE_BITS==16)
 	#define FINAL_SH    (0)
@@ -1988,10 +1993,19 @@ void FM_OPL::ResetChip()
 	for(int i = 0xff ; i >= 0x20 ; i-- ) WriteReg(i,0);
 
 	/* reset operator parameters */
+#ifdef GP2X
+	for (int i=0; i<9; i++)
+	{
+		OPL_CH   &CH   = P_CH[i];
+		for (int j=0; j<2; j++)
+		{
+			OPL_SLOT &SLOT = CH.SLOT[j];
+#else
 	for(OPL_CH &CH : P_CH)
 	{
 		for(OPL_SLOT &SLOT : CH.SLOT)
 		{
+#endif
 			/* wave table */
 			SLOT.wavetable = 0;
 			SLOT.state     = EG_OFF;
@@ -2013,15 +2027,27 @@ void FM_OPL::ResetChip()
 
 void FM_OPL::postload()
 {
+#ifdef GP2X
+	for (int i=0; i<9; i++)
+	{
+		OPL_CH &CH = P_CH[i];
+#else
 	for(OPL_CH &CH : P_CH)
 	{
+#endif
 		/* Look up key scale level */
 		uint32_t const block_fnum = CH.block_fnum;
 		CH.ksl_base = static_cast<uint32_t>(ksl_tab[block_fnum >> 6]);
 		CH.fc       = fn_tab[block_fnum & 0x03ff] >> (7 - (block_fnum >> 10));
 
+#ifdef GP2X
+		for (int j=0; j<2; j++)
+		{
+			OPL_SLOT &SLOT = CH.SLOT[j];
+#else
 		for(OPL_SLOT &SLOT : CH.SLOT)
 		{
+#endif
 			/* Calculate key scale rate */
 			SLOT.ksr = CH.kcode >> SLOT.KSR;
 

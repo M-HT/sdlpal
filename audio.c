@@ -70,6 +70,10 @@ static AUDIODEVICE gAudioDevice;
 	((gAudioDevice.id = SDL_OpenAudioDevice((gConfig.iAudioDevice >= 0 ? SDL_GetAudioDeviceName(gConfig.iAudioDevice, 0) : NULL), 0, (desired), (obtained), 0)) > 0 ? gAudioDevice.id : -1)
 #endif
 
+#ifdef GP2X
+VOID AUDIO_Platform_AfterOpenDevice(VOID);
+#endif
+
 PAL_FORCE_INLINE
 void
 AUDIO_MixNative(
@@ -144,12 +148,34 @@ AUDIO_AdjustVolume(
 		vst1_s16(srcdst, vshrn_n_s32(valx4, 7));
 		srcdst += 4;
 	}
-#endif
 	while (samples > 0)
 	{
 		*srcdst = *srcdst * iVolume / SDL_MIX_MAXVOLUME;
 		samples--; srcdst++;
 	}
+#elif defined(GP2X)
+	if (((uintptr_t)srcdst & 2) && (samples >= 1))
+	{
+		*srcdst = *srcdst * iVolume / SDL_MIX_MAXVOLUME;
+		samples--; srcdst++;
+	}
+	while (samples > 1)
+	{
+		uint32_t valx2 = *(uint32_t *)srcdst;
+		*(uint32_t *)srcdst = ((uint16_t)(((int16_t)valx2) * iVolume / SDL_MIX_MAXVOLUME)) | (((((int32_t)valx2) >> 16) * iVolume / SDL_MIX_MAXVOLUME) << 16);
+		samples -= 2; srcdst += 2;
+	}
+	if (samples >= 1)
+	{
+		*srcdst = *srcdst * iVolume / SDL_MIX_MAXVOLUME;
+	}
+#else
+	while (samples > 0)
+	{
+		*srcdst = *srcdst * iVolume / SDL_MIX_MAXVOLUME;
+		samples--; srcdst++;
+	}
+#endif
 }
 
 static VOID SDLCALL
@@ -424,6 +450,10 @@ AUDIO_OpenDevice(
    // Let the callback function run so that musics will be played.
    //
    SDL_PauseAudio(0);
+
+#ifdef GP2X
+   AUDIO_Platform_AfterOpenDevice();
+#endif
 
    return 0;
 }

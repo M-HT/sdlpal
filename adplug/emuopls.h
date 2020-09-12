@@ -84,7 +84,7 @@ public:
 	// Assumes a 16-bit, stereo output sample buffer @ OPL3/DUAL_OPL2 mode
 	void update(short *buf, int samples) {
 		if (currType == TYPE_DUAL_OPL2) {
-			auto lbuf = (short*)alloca(sizeof(short) * samples);
+			short* lbuf = (short*)alloca(sizeof(short) * samples);
 			opl[0]->Generate(lbuf, samples);
 			opl[1]->Generate(buf + samples, samples);
 			for (int i = 0, j = 0; i < samples; i++) {

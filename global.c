@@ -467,7 +467,7 @@ PAL_LoadDefaultGame(
    gpGlobals->fEnteringScene = TRUE;
 }
 
-typedef struct tagSAVEDGAME_COMMON
+typedef struct ALIGNED_PACKED tagSAVEDGAME_COMMON
 {
 	WORD             wSavedTimes;             // saved times
 	WORD             wViewportX, wViewportY;  // viewport location
@@ -496,7 +496,7 @@ typedef struct tagSAVEDGAME_COMMON
 	SCENE            rgScene[MAX_SCENES];
 } SAVEDGAME_COMMON, *LPSAVEDGAME_COMMON;
 
-typedef struct tagSAVEDGAME_DOS
+typedef struct ALIGNED_PACKED tagSAVEDGAME_DOS
 {
 	WORD             wSavedTimes;             // saved times
 	WORD             wViewportX, wViewportY;  // viewport location
@@ -798,7 +798,7 @@ PAL_SaveGame_Common(
 
 	fwrite(s, i, 1, fp);
 	fclose(fp);
-#if defined(PANDORA)
+#if defined(PANDORA) || defined(GP2X)
 	sync();
 #endif
 }
