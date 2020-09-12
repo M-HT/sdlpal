@@ -60,6 +60,9 @@ typedef enum tagSTATUS
 #define kStatusParalyzed kStatusSleep
 #endif
 
+#define ALIGNED_PACKED __attribute__ ((__aligned__(2))) __attribute__ ((__packed__))
+#define ALIGNED2 __attribute__ ((__aligned__(2)))
+
 // body parts of equipments
 typedef enum tagBODYPART
 {
@@ -93,7 +96,7 @@ typedef enum tagTRIGGERMODE
    kTriggerTouchFarthest         = 8
 } TRIGGERMODE;
 
-typedef struct tagEVENTOBJECT
+typedef struct ALIGNED_PACKED tagEVENTOBJECT
 {
    SHORT        sVanishTime;         // vanish time (?)
    WORD         x;                   // X coordinate on the map
@@ -113,7 +116,7 @@ typedef struct tagEVENTOBJECT
    WORD         wScriptIdleFrameCountAuto;     // count of idle frames, used by auto script
 } EVENTOBJECT, *LPEVENTOBJECT;
 
-typedef struct tagSCENE
+typedef struct ALIGNED_PACKED tagSCENE
 {
    WORD         wMapNum;         // number of the map
    WORD         wScriptOnEnter;  // when entering this scene, execute script from here
@@ -124,7 +127,7 @@ typedef struct tagSCENE
 // object including system strings, players, items, magics, enemies and poison scripts.
 
 // system strings and players
-typedef struct tagOBJECT_PLAYER
+typedef struct ALIGNED_PACKED tagOBJECT_PLAYER
 {
    WORD         wReserved[2];    // always zero
    WORD         wScriptOnFriendDeath; // when friends in party dies, execute script from here
@@ -143,7 +146,7 @@ typedef enum tagITEMFLAG
 } ITEMFLAG;
 
 // items
-typedef struct tagOBJECT_ITEM_DOS
+typedef struct ALIGNED_PACKED tagOBJECT_ITEM_DOS
 {
    WORD         wBitmap;         // bitmap number in BALL.MKF
    WORD         wPrice;          // price
@@ -154,7 +157,7 @@ typedef struct tagOBJECT_ITEM_DOS
 } OBJECT_ITEM_DOS;
 
 // items
-typedef struct tagOBJECT_ITEM
+typedef struct ALIGNED_PACKED tagOBJECT_ITEM
 {
 	WORD         wBitmap;         // bitmap number in BALL.MKF
 	WORD         wPrice;          // price
@@ -174,7 +177,7 @@ typedef enum tagMAGICFLAG
 } MAGICFLAG;
 
 // magics
-typedef struct tagOBJECT_MAGIC_DOS
+typedef struct ALIGNED_PACKED tagOBJECT_MAGIC_DOS
 {
    WORD         wMagicNumber;      // magic number, according to DATA.MKF #3
    WORD         wReserved1;        // always zero
@@ -185,7 +188,7 @@ typedef struct tagOBJECT_MAGIC_DOS
 } OBJECT_MAGIC_DOS;
 
 // magics
-typedef struct tagOBJECT_MAGIC
+typedef struct ALIGNED_PACKED tagOBJECT_MAGIC
 {
 	WORD         wMagicNumber;      // magic number, according to DATA.MKF #3
 	WORD         wReserved1;        // always zero
@@ -197,7 +200,7 @@ typedef struct tagOBJECT_MAGIC
 } OBJECT_MAGIC;
 
 // enemies
-typedef struct tagOBJECT_ENEMY
+typedef struct ALIGNED_PACKED tagOBJECT_ENEMY
 {
    WORD         wEnemyID;        // ID of the enemy, according to DATA.MKF #1.
                                  // Also indicates the bitmap number in ABC.MKF.
@@ -208,7 +211,7 @@ typedef struct tagOBJECT_ENEMY
 } OBJECT_ENEMY;
 
 // poisons (scripts executed in each round)
-typedef struct tagOBJECT_POISON
+typedef struct ALIGNED_PACKED tagOBJECT_POISON
 {
    WORD         wPoisonLevel;    // level of the poison
    WORD         wColor;          // color of avatars
@@ -217,7 +220,7 @@ typedef struct tagOBJECT_POISON
    WORD         wEnemyScript;    // script executed when enemy has this poison (per round)
 } OBJECT_POISON;
 
-typedef union tagOBJECT_DOS
+typedef union ALIGNED_PACKED tagOBJECT_DOS
 {
 	WORD              rgwData[6];
 	OBJECT_PLAYER     player;
@@ -227,7 +230,7 @@ typedef union tagOBJECT_DOS
 	OBJECT_POISON     poison;
 } OBJECT_DOS, *LPOBJECT_DOS;
 
-typedef union tagOBJECT
+typedef union ALIGNED_PACKED tagOBJECT
 {
 	WORD              rgwData[7];
 	OBJECT_PLAYER     player;
@@ -237,25 +240,25 @@ typedef union tagOBJECT
 	OBJECT_POISON     poison;
 } OBJECT, *LPOBJECT;
 
-typedef struct tagSCRIPTENTRY
+typedef struct ALIGNED_PACKED tagSCRIPTENTRY
 {
    WORD          wOperation;     // operation code
    WORD          rgwOperand[3];  // operands
 } SCRIPTENTRY, *LPSCRIPTENTRY;
 
-typedef struct tagINVENTORY
+typedef struct ALIGNED_PACKED tagINVENTORY
 {
    WORD          wItem;             // item object code
    USHORT        nAmount;           // amount of this item
    USHORT        nAmountInUse;      // in-use amount of this item
 } INVENTORY, *LPINVENTORY;
 
-typedef struct tagSTORE
+typedef struct ALIGNED_PACKED tagSTORE
 {
    WORD          rgwItems[MAX_STORE_ITEM];
 } STORE, *LPSTORE;
 
-typedef struct tagENEMY
+typedef struct ALIGNED_PACKED tagENEMY
 {
    WORD        wIdleFrames;         // total number of frames when idle
    WORD        wMagicFrames;        // total number of frames when using magics
@@ -290,14 +293,14 @@ typedef struct tagENEMY
    WORD        wCollectValue;       // value for collecting this enemy for items
 } ENEMY, *LPENEMY;
 
-typedef struct tagENEMYTEAM
+typedef struct ALIGNED_PACKED tagENEMYTEAM
 {
    WORD        rgwEnemy[MAX_ENEMIES_IN_TEAM];
 } ENEMYTEAM, *LPENEMYTEAM;
 
-typedef WORD PLAYERS[MAX_PLAYER_ROLES];
+typedef WORD PLAYERS[MAX_PLAYER_ROLES] ALIGNED2;
 
-typedef struct tagPLAYERROLES
+typedef struct ALIGNED_PACKED tagPLAYERROLES
 {
    PLAYERS            rgwAvatar;             // avatar (shown in status view)
    PLAYERS            rgwSpriteNumInBattle;  // sprite displayed in battle (in F.MKF)
@@ -348,7 +351,7 @@ typedef enum tagMAGIC_TYPE
    kMagicTypeSummon           = 9,  // summon
 } MAGIC_TYPE;
 
-typedef struct tagMAGIC
+typedef struct ALIGNED_PACKED tagMAGIC
 {
    WORD               wEffect;               // effect sprite
    WORD               wType;                 // type of this magic
@@ -368,7 +371,7 @@ typedef struct tagMAGIC
    SHORT              wSound;                // sound played when using this magic
 } MAGIC, *LPMAGIC;
 
-typedef struct tagBATTLEFIELD
+typedef struct ALIGNED_PACKED tagBATTLEFIELD
 {
    WORD               wScreenWave;                      // level of screen waving
    SHORT              rgsMagicEffect[NUM_MAGIC_ELEMENTAL]; // effect of attributed magics
@@ -381,18 +384,18 @@ typedef struct tagLEVELUPMAGIC
    WORD               wMagic;    // magic learned
 } LEVELUPMAGIC, *LPLEVELUPMAGIC;
 
-typedef struct tagLEVELUPMAGIC_ALL
+typedef struct ALIGNED_PACKED tagLEVELUPMAGIC_ALL
 {
    LEVELUPMAGIC       m[MAX_PLAYABLE_PLAYER_ROLES];
 } LEVELUPMAGIC_ALL, *LPLEVELUPMAGIC_ALL;
 
-typedef struct tagPALPOS
+typedef struct ALIGNED_PACKED tagPALPOS
 {
 	WORD      x;
 	WORD      y;
 } PALPOS;
 
-typedef struct tagENEMYPOS
+typedef struct ALIGNED_PACKED tagENEMYPOS
 {
 	PALPOS pos[MAX_ENEMIES_IN_TEAM][MAX_ENEMIES_IN_TEAM];
 } ENEMYPOS, *LPENEMYPOS;
@@ -451,7 +454,7 @@ typedef struct tagFILES
 } FILES, *LPFILES;
 
 // player party
-typedef struct tagPARTY
+typedef struct ALIGNED_PACKED tagPARTY
 {
    WORD             wPlayerRole;         // player role
    SHORT            x, y;                // position
@@ -460,13 +463,13 @@ typedef struct tagPARTY
 } PARTY, *LPPARTY;
 
 // player trail, used for other party members to follow the main party member
-typedef struct tagTRAIL
+typedef struct ALIGNED_PACKED tagTRAIL
 {
    WORD             x, y;          // position
    WORD             wDirection;    // direction
 } TRAIL, *LPTRAIL;
 
-typedef struct tagEXPERIENCE
+typedef struct ALIGNED_PACKED tagEXPERIENCE
 {
    WORD         wExp;                // current experience points
    WORD         wReserved;
@@ -474,7 +477,7 @@ typedef struct tagEXPERIENCE
    WORD         wCount;
 } EXPERIENCE, *LPEXPERIENCE;
 
-typedef struct tagALLEXPERIENCE
+typedef struct ALIGNED_PACKED tagALLEXPERIENCE
 {
    EXPERIENCE        rgPrimaryExp[MAX_PLAYER_ROLES];
    EXPERIENCE        rgHealthExp[MAX_PLAYER_ROLES];
@@ -486,7 +489,7 @@ typedef struct tagALLEXPERIENCE
    EXPERIENCE        rgFleeExp[MAX_PLAYER_ROLES];
 } ALLEXPERIENCE, *LPALLEXPERIENCE;
 
-typedef struct tagPOISONSTATUS
+typedef struct ALIGNED_PACKED tagPOISONSTATUS
 {
    WORD              wPoisonID;       // kind of the poison
    WORD              wPoisonScript;   // script entry

@@ -12,6 +12,9 @@
 # include <arm_neon.h>
 # define RESAMPLER_NEON_32
 #endif
+#if defined(GP2X)
+# define RESAMPLER_INT
+#endif
 
 #ifdef _MSC_VER
 #define ALIGNED     _declspec(align(16))
@@ -31,7 +34,11 @@ enum { SINC_WIDTH = 16 };
 enum { SINC_SAMPLES = RESAMPLER_RESOLUTION * SINC_WIDTH };
 enum { CUBIC_SAMPLES = RESAMPLER_RESOLUTION * 4 };
 
+#ifdef RESAMPLER_INT
+ALIGNED static int32_t cubic_lut[CUBIC_SAMPLES];
+#else
 ALIGNED static float cubic_lut[CUBIC_SAMPLES];
+#endif
 
 static float sinc_lut[SINC_SAMPLES + 1];
 static float window_lut[SINC_SAMPLES + 1];
@@ -527,13 +534,19 @@ static int resampler_run_linear(resampler * r, float ** out_, float * out_end)
 
 		do
 		{
+#ifndef RESAMPLER_INT
 			float sample;
+#endif
 
 			if (out >= out_end)
 				break;
 
+#ifdef RESAMPLER_INT
+			*(int32_t *)out++ = ((int32_t *)in)[0] + (int32_t)(((((int32_t *)in)[1] - ((int32_t *)in)[0]) * (int64_t)phase) >> RESAMPLER_SHIFT);
+#else
 			sample = in[0] + (in[1] - in[0]) * ((float)phase / RESAMPLER_RESOLUTION);
 			*out++ = sample;
+#endif
 
 			phase += phase_inc;
 
@@ -613,18 +626,30 @@ static int resampler_run_cubic_c(resampler * r, float ** out_, float * out_end)
 
 		do
 		{
+#ifdef RESAMPLER_INT
+			int32_t * kernel;
+			int i;
+			int64_t sample;
+#else
 			float * kernel;
 			int i;
 			float sample;
+#endif
 
 			if (out >= out_end)
 				break;
 
 			kernel = cubic_lut + phase * 4;
 
+#ifdef RESAMPLER_INT
+			for (sample = 0, i = 0; i < 4; ++i)
+				sample += ((int32_t *)in)[i] * (int64_t)kernel[i];
+			*(int32_t *)out++ = sample >> 30;
+#else
 			for (sample = 0, i = 0; i < 4; ++i)
 				sample += in[i] * kernel[i];
 			*out++ = sample;
+#endif
 
 			phase += phase_inc;
 
@@ -798,10 +823,17 @@ void resampler_init(void)
     x = 0.0;
     for (i = 0; i < RESAMPLER_RESOLUTION; ++i, x += dx)
     {
+#ifdef RESAMPLER_INT
+        cubic_lut[i*4]   = (int32_t)((-0.5 * x * x * x +       x * x - 0.5 * x) * (double)(1 << 30));
+        cubic_lut[i*4+1] = (int32_t)(( 1.5 * x * x * x - 2.5 * x * x           + 1.0) * (double)(1 << 30));
+        cubic_lut[i*4+2] = (int32_t)((-1.5 * x * x * x + 2.0 * x * x + 0.5 * x) * (double)(1 << 30));
+        cubic_lut[i*4+3] = (int32_t)(( 0.5 * x * x * x - 0.5 * x * x) * (double)(1 << 30));
+#else
         cubic_lut[i*4]   = (float)(-0.5 * x * x * x +       x * x - 0.5 * x);
         cubic_lut[i*4+1] = (float)( 1.5 * x * x * x - 2.5 * x * x           + 1.0);
         cubic_lut[i*4+2] = (float)(-1.5 * x * x * x + 2.0 * x * x + 0.5 * x);
         cubic_lut[i*4+3] = (float)( 0.5 * x * x * x - 0.5 * x * x);
+#endif
     }
 #ifdef RESAMPLER_SSE
 	if (query_cpu_feature_sse())
@@ -906,6 +938,15 @@ void resampler_set_quality(void *_r, int quality)
             r->accumulator = 0;
             memset( r->buffer_out, 0, sizeof(r->buffer_out) );
         }
+#ifdef RESAMPLER_INT
+        else if ( (quality == RESAMPLER_QUALITY_SINC) != (r->quality == RESAMPLER_QUALITY_SINC) )
+        {
+            r->read_pos = 0;
+            r->read_filled = 0;
+            r->last_amp = 0;
+            r->accumulator = 0;
+        }
+#endif
         r->delay_added = -1;
         r->delay_removed = -1;
     }
@@ -1019,11 +1060,25 @@ void resampler_write_sample(void *_r, short s)
         vst1_lane_f32(&(r->buffer_in[ r->write_pos ]), s32x2, 0);
         vst1_lane_f32(&(r->buffer_in[ r->write_pos + resampler_buffer_size ]), s32x2, 0);
 #else
+#ifdef RESAMPLER_INT
+        if ( (r->quality == RESAMPLER_QUALITY_BLEP) || (r->quality == RESAMPLER_QUALITY_SINC) )
+        {
+#endif
         float s32 = s;
         s32 *= 256.0;
 
         r->buffer_in[ r->write_pos ] = s32;
         r->buffer_in[ r->write_pos + resampler_buffer_size ] = s32;
+#ifdef RESAMPLER_INT
+        }
+        else
+        {
+            int32_t s32 = s << 8;
+
+            ((int32_t *)r->buffer_in)[ r->write_pos ] = s32;
+            ((int32_t *)r->buffer_in)[ r->write_pos + resampler_buffer_size ] = s32;
+        }
+#endif
 #endif
 
         ++r->write_filled;
@@ -1044,11 +1099,25 @@ void resampler_write_sample_fixed(void *_r, int s, unsigned char depth)
 
     if ( r->write_filled < resampler_buffer_size )
     {
+#ifdef RESAMPLER_INT
+        if ( (r->quality == RESAMPLER_QUALITY_BLEP) || (r->quality == RESAMPLER_QUALITY_SINC) )
+        {
+#endif
         float s32 = s;
         s32 /= (double)(1 << (depth - 1));
 
         r->buffer_in[ r->write_pos ] = s32;
         r->buffer_in[ r->write_pos + resampler_buffer_size ] = s32;
+#ifdef RESAMPLER_INT
+        }
+        else
+        {
+            int32_t s32 = s >> (depth - 1);
+
+            ((int32_t *)r->buffer_in)[ r->write_pos ] = s32;
+            ((int32_t *)r->buffer_in)[ r->write_pos + resampler_buffer_size ] = s32;
+        }
+#endif
 
         ++r->write_filled;
 
@@ -1140,10 +1209,21 @@ int resampler_get_sample(void *_r)
     else
         return vget_lane_s32(vcvt_s32_f32(value), 0);
 #else
+#ifdef RESAMPLER_INT
+    if ( (r->quality == RESAMPLER_QUALITY_BLEP) || (r->quality == RESAMPLER_QUALITY_SINC) )
+    {
+#endif
     if ( r->quality == RESAMPLER_QUALITY_BLEP )
         return (int)(r->buffer_out[ r->read_pos ] + r->accumulator);
     else
         return (int)r->buffer_out[ r->read_pos ];
+#ifdef RESAMPLER_INT
+    }
+    else
+    {
+        return ((int32_t *)r->buffer_out)[ r->read_pos ];
+    }
+#endif
 #endif
 }
 

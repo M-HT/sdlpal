@@ -73,6 +73,37 @@ PAL_BattleMakeScene(
       pSrc += 16;
       pDst += 16;
    }
+#elif defined(GP2X)
+   int iColorShift = g_Battle.sBackgroundColorShift;
+   for (i = g_Battle.lpSceneBuf->pitch * g_Battle.lpSceneBuf->h; i != 0; i -= 4)
+   {
+      uint32_t lowerNibble = *(uint32_t *)pSrc & 0x0F0F0F0F;
+      uint32_t value = *(uint32_t *)pSrc & 0xF0F0F0F0;
+      pSrc += 4;
+
+      int8_t ib = lowerNibble + iColorShift;
+      if (ib < 0) ib = 0;
+      else if (ib > 0x0F) ib = 0x0F;
+      value |= ib;
+
+      ib = (lowerNibble >> 8) + iColorShift;
+      if (ib < 0) ib = 0;
+      else if (ib > 0x0F) ib = 0x0F;
+      value |= ib << 8;
+
+      ib = (lowerNibble >> 16) + iColorShift;
+      if (ib < 0) ib = 0;
+      else if (ib > 0x0F) ib = 0x0F;
+      value |= ib << 16;
+
+      ib = (lowerNibble >> 24) + iColorShift;
+      if (ib < 0) ib = 0;
+      else if (ib > 0x0F) ib = 0x0F;
+      value |= ib << 24;
+
+      *(uint32_t *)pDst = value;
+      pDst += 4;
+   }
 #else
    for (i = 0; i < g_Battle.lpSceneBuf->pitch * g_Battle.lpSceneBuf->h; i++)
    {

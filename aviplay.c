@@ -107,6 +107,10 @@ typedef struct AVIPlayState
 
 static AVIPlayState gAVIPlayState;
 
+#ifdef GP2X
+VOID VIDEO_Platform_StretchSurface(SDL_Surface *pSurface);
+#endif
+
 static AVIPlayState *
 PAL_ReadAVIInfo(
 	FILE         *fp,
@@ -667,6 +671,9 @@ PAL_PlayAVI(
     PAL_ClearKeyState();
 
     VIDEO_ChangeDepth(avi->surface->format->BitsPerPixel);
+#ifdef GP2X
+    VIDEO_Platform_StretchSurface(avi->surface);
+#endif
 
 	BOOL       fEndPlay = FALSE;
 	RIFFChunk *buf = (RIFFChunk *)avi->pChunkBuffer;

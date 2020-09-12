@@ -57,6 +57,9 @@ static WORD               g_wShakeLevel      = 0;
 
 #ifdef PANDORA
 VOID VIDEO_Platform_Blit_15_32(SDL_Surface *pSrc, SDL_Surface *pDst);
+#elif defined(GP2X)
+VOID VIDEO_Platform_AfterSetVideoMode(VOID);
+VOID VIDEO_Platform_Blit_15_16(SDL_Surface *pSrc, SDL_Surface *pDst);
 #endif
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
@@ -113,7 +116,7 @@ static SDL_Texture *VIDEO_CreateTexture(int width, int height)
 	//
 	return SDL_CreateTexture(gpRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, texture_width, texture_height);
 }
-#elif defined(PANDORA)
+#elif defined(PANDORA) || defined(GP2X)
 static int VIDEO_SoftStretch(SDL_Surface *src, SDL_Rect *srcrect,
                              SDL_Surface *dst, SDL_Rect *dstrect)
 {
@@ -332,6 +335,10 @@ VIDEO_Startup(
    {
       return -1;
    }
+
+#ifdef GP2X
+   VIDEO_Platform_AfterSetVideoMode();
+#endif
 #endif
 
    gpPalette = gpScreenReal->format->palette;
@@ -718,7 +725,7 @@ VIDEO_Resize(
 
    VIDEO_UpdateScreen(&rect);
 #else
-#if !defined(PANDORA)
+#if !defined(PANDORA) && !defined(GP2X)
    DWORD                    flags;
    PAL_LARGE SDL_Color      palette[256];
    int                      i, bpp;
@@ -836,7 +843,7 @@ VIDEO_ToggleFullscreen(
 		gConfig.fFullScreen = TRUE;
 	}
 #else
-#if !defined(PANDORA)
+#if !defined(PANDORA) && !defined(GP2X)
    DWORD                    flags;
    PAL_LARGE SDL_Color      palette[256];
    int                      i, bpp;
@@ -955,6 +962,10 @@ VIDEO_ChangeDepth(
       //
       gpScreenReal = SDL_SetVideoMode(PAL_DEFAULT_WINDOW_WIDTH, PAL_DEFAULT_WINDOW_HEIGHT, (bpp == 0)?8:bpp, SDL_SWSURFACE);
    }
+
+#ifdef GP2X
+   VIDEO_Platform_AfterSetVideoMode();
+#endif
 #endif
 
    gpPalette = gpScreenReal->format->palette;
@@ -1450,6 +1461,9 @@ VIDEO_DrawSurfaceToScreen(
    }
    VIDEO_Platform_Blit_15_32(pSurface, gpScreenFinal);
    SDL_Flip(gpScreenFinal);
+#elif defined(GP2X)
+   VIDEO_Platform_Blit_15_16(pSurface, gpScreenReal);
+   SDL_UpdateRect(gpScreenReal, 0, 0, pSurface->w, pSurface->h);
 #else
    SDL_Surface   *pCompatSurface;
    SDL_Rect       rect;
