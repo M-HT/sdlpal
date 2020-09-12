@@ -33,6 +33,10 @@
 #define PAL_HAS_TOUCH     0
 #endif
 
+#if !defined(PAL_CONFIG_FILENAME)
+#define PAL_CONFIG_FILENAME "sdlpal.cfg"
+#endif
+
 #define MAKE_VALUE(defv, minv, maxv) {(LPCSTR)(defv)}, {(LPCSTR)(minv)}, {(LPCSTR)(maxv)}
 
 static const ConfigItem gConfigItems[PALCFG_ALL_MAX] = {
@@ -71,7 +75,7 @@ static const ConfigItem gConfigItems[PALCFG_ALL_MAX] = {
     { PALCFG_ASPECTRATIO,       PALCFG_STRING,   "AspectRatio",       11, MAKE_VALUE("16:10",  NULL, NULL) },
 };
 
-static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "RAW" };
+static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "RAW", "SOFTMIDI" };
 static const char *opl_types[] = { "DOSBOX", "MAME", "DOSBOXNEW" };
 
 
@@ -301,7 +305,7 @@ PAL_LoadConfig(
 
 	for (PALCFG_ITEM i = PALCFG_ALL_MIN; i < PALCFG_ALL_MAX; i++) values[i] = gConfigItems[i].DefaultValue;
 
-	if (fFromFile && (fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, "sdlpal.cfg", "r")))
+	if (fFromFile && (fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, PAL_CONFIG_FILENAME, "r")))
 	{
 		PAL_LARGE char buf[512];
 
@@ -355,6 +359,8 @@ PAL_LoadConfig(
 				{
 					if (PAL_HAS_NATIVEMIDI && SDL_strncasecmp(value.sValue, "MIDI", 4) == 0)
 						eMusicType = MUSIC_MIDI;
+					else if (PAL_HAS_SOFTMIDI && SDL_strncasecmp(value.sValue, "SOFTMIDI", 8) == 0)
+						eMusicType = MUSIC_SOFTMIDI;
 					else if (PAL_HAS_MP3 && SDL_strncasecmp(value.sValue, "MP3", 3) == 0)
 						eMusicType = MUSIC_MP3;
 					else if (PAL_HAS_OGG && SDL_strncasecmp(value.sValue, "OGG", 3) == 0)
@@ -427,7 +433,7 @@ PAL_LoadConfig(
 					size_t len = strlen(value.sValue) + 1;
 					char *origAspectRatio = (char*)malloc(len);
 					memset(origAspectRatio, 0, len);
-					strncpy(origAspectRatio, value.sValue, strlen(value.sValue));
+					memcpy(origAspectRatio, value.sValue, strlen(value.sValue));
 					char *aspectRatio = ParseStringValue(value.sValue, origAspectRatio);
 					char *lasts;
 					if( strchr(aspectRatio,':') == NULL ) {
@@ -501,7 +507,7 @@ PAL_SaveConfig(
 )
 {
 	char buf[512];
-	FILE *fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, "sdlpal.cfg", "w");
+	FILE *fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, PAL_CONFIG_FILENAME, "w");
 
 	if (fp)
 	{

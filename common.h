@@ -198,6 +198,9 @@ typedef const WCHAR        *LPCWSTR;
 #ifndef PAL_HAS_OGG
 # define PAL_HAS_OGG          1   /* Try always enable OGG. If compilation/run failed, please change this value to 0. */
 #endif
+#ifndef PAL_HAS_SOFTMIDI
+# define PAL_HAS_SOFTMIDI     1   /* Try always enable SOFTMIDI. If compilation/run failed, please change this value to 0. */
+#endif
 
 #ifndef PAL_CONFIG_PREFIX
 # define PAL_CONFIG_PREFIX PAL_PREFIX

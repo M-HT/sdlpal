@@ -714,7 +714,7 @@ PAL_LoadGame_WIN(
 
    memcpy(gpGlobals->g.rgObject, s->rgObject, sizeof(gpGlobals->g.rgObject));
    memcpy(gpGlobals->g.lprgEventObject, s->rgEventObject, sizeof(EVENTOBJECT) * gpGlobals->g.nEventObject);
-    
+
    free(s);
 
    //
@@ -798,6 +798,9 @@ PAL_SaveGame_Common(
 
 	fwrite(s, i, 1, fp);
 	fclose(fp);
+#if defined(PANDORA)
+	sync();
+#endif
 }
 
 static VOID

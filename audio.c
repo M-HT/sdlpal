@@ -30,6 +30,9 @@
 #include "midi.h"
 #include "aviplay.h"
 #include <math.h>
+#ifdef PANDORA
+#include <arm_neon.h>
+#endif
 
 #define PAL_CDTRACK_BASE    10000
 
@@ -63,6 +66,38 @@ AUDIO_MixNative(
 	int        samples
 )
 {
+#ifdef PANDORA
+	for (; samples >= 8; samples -= 8)
+	{
+		vst1q_s16(dst, vqaddq_s16(vld1q_s16(src), vld1q_s16(dst)));
+		src += 8;
+		dst += 8;
+	}
+	Uint32 val1, val2;
+	asm volatile (
+		"cmp %[samples], #1\n"
+		"blt 3f\n"
+		"beq 2f\n"
+		"1:\n"
+		"ldr %[val1], [%[src]], #4\n"
+		"sub %[samples], %[samples], #2\n"
+		"ldr %[val2], [%[dst]]\n"
+		"cmp %[samples], #1\n"
+		"qadd16 %[val2], %[val1], %[val2]\n"
+		"str %[val2], [%[dst]], #4\n"
+		"bgt 1b\n"
+		"blt 3f\n"
+		"2:\n"
+		"ldrh %[val1], [%[src]]\n"
+		"ldrh %[val2], [%[dst]]\n"
+		"qadd16 %[val2], %[val1], %[val2]\n"
+		"strh %[val2], [%[dst]]\n"
+		"3:\n"
+		: [src] "+r" (src), [dst] "+r" (dst), [samples] "+r" (samples), [val1] "=&r" (val1), [val2] "=&r" (val2)
+		:
+		: "cc", "memory"
+	);
+#else
 	while (samples > 0)
 	{
 		int val = *src++ + *dst;
@@ -74,6 +109,7 @@ AUDIO_MixNative(
 			*dst++ = (short)val;
 		samples--;
 	}
+#endif
 }
 
 PAL_FORCE_INLINE
@@ -86,6 +122,17 @@ AUDIO_AdjustVolume(
 {
 	if (iVolume == SDL_MIX_MAXVOLUME) return;
 	if (iVolume == 0) { memset(srcdst, 0, samples << 1); return; }
+#if defined(PANDORA) && (SDL_MIX_MAXVOLUME == 128)
+	const int16x4_t iVolumex4 = vdup_n_s16(iVolume);
+	const int32x4_t iZerox4 = vmovq_n_s32(0);
+	for (; samples >= 4; samples -= 4)
+	{
+		int32x4_t valx4 = vmull_s16(vld1_s16(srcdst), iVolumex4);
+		valx4 += (int32x4_t)(vcltq_s32(valx4, iZerox4) & 127);
+		vst1_s16(srcdst, vshrn_n_s32(valx4, 7));
+		srcdst += 4;
+	}
+#endif
 	while (samples > 0)
 	{
 		*srcdst = *srcdst * iVolume / SDL_MIX_MAXVOLUME;
@@ -263,6 +310,9 @@ AUDIO_OpenDevice(
 	   break;
    case MUSIC_OGG:
 	   gAudioDevice.pMusPlayer = OGG_Init();
+	   break;
+   case MUSIC_SOFTMIDI:
+	   gAudioDevice.pMusPlayer = SOFTMIDI_Init();
 	   break;
    case MUSIC_MIDI:
 	   gAudioDevice.pMusPlayer = NULL;

@@ -21,6 +21,9 @@
 //
 
 #include "main.h"
+#ifdef PANDORA
+#include <arm_neon.h>
+#endif
 
 BATTLE          g_Battle;
 
@@ -61,6 +64,16 @@ PAL_BattleMakeScene(
    pSrc = g_Battle.lpBackground->pixels;
    pDst = g_Battle.lpSceneBuf->pixels;
 
+#ifdef PANDORA
+   int8x16_t iColorShiftx16 = vdupq_n_s8(g_Battle.sBackgroundColorShift);
+   for (i = g_Battle.lpSceneBuf->pitch * g_Battle.lpSceneBuf->h; i != 0; i -= 16)
+   {
+      uint8x16_t bx16 = vld1q_u8(pSrc);
+      vst1q_u8(pDst, vshrq_n_u8(vqshluq_n_s8((int8x16_t)((bx16 & 0x0F) + iColorShiftx16), 4), 4) | (bx16 & 0xF0));
+      pSrc += 16;
+      pDst += 16;
+   }
+#else
    for (i = 0; i < g_Battle.lpSceneBuf->pitch * g_Battle.lpSceneBuf->h; i++)
    {
       b = (*pSrc & 0x0F);
@@ -80,6 +93,7 @@ PAL_BattleMakeScene(
       ++pSrc;
       ++pDst;
    }
+#endif
 
    PAL_ApplyWave(g_Battle.lpSceneBuf);
 
@@ -219,7 +233,7 @@ PAL_BattleFadeScene(
    DWORD             time;
    BYTE              a, b;
    const int         rgIndex[6] = {0, 3, 1, 5, 2, 4};
-   
+
    time = SDL_GetTicks();
 
    for (i = 0; i < 12; i++)
@@ -293,7 +307,7 @@ PAL_BattleMain(
 {
    int         i;
    DWORD       dwTime;
-   
+
    VIDEO_BackupScreen(gpScreen);
 
    //
@@ -644,7 +658,7 @@ PAL_BattleWon(
    //
    gpGlobals->dwCash += g_Battle.iCashGained;
 
-    
+
     const MENUITEM      rgFakeMenuItem[] =
     {
         // value  label                        enabled   pos
