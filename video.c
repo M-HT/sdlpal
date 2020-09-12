@@ -47,6 +47,9 @@ static struct RenderBackend {
 } gRenderBackend;
 #else
 #undef PAL_HAS_GLSL
+#ifdef PANDORA
+static SDL_Surface       *gpScreenFinal      = NULL;
+#endif
 #endif
 
 // The real screen surface
@@ -62,6 +65,10 @@ static WORD               g_wShakeLevel      = 0;
 
 #if PAL_HAS_GLSL
 #include "video_glsl.h"
+#endif
+
+#ifdef PANDORA
+VOID VIDEO_Platform_Blit_15_32(SDL_Surface *pSrc, SDL_Surface *pDst);
 #endif
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
@@ -105,7 +112,7 @@ static SDL_Texture *VIDEO_CreateTexture(int width, int height)
 		gTextureRect.x = (texture_width - 320) / 2;
 		gTextureRect.y = (texture_height - 200) / 2;
 		gTextureRect.w = 320; gTextureRect.h = 200;
-		
+
 		VIDEO_SetupTouchArea(width,height,w,h);
 	}
 	else
@@ -114,7 +121,7 @@ static SDL_Texture *VIDEO_CreateTexture(int width, int height)
 		texture_height = 200;
 		gTextureRect.x = gTextureRect.y = 0;
 		gTextureRect.w = 320; gTextureRect.h = 200;
-		
+
 		VIDEO_SetupTouchArea(width,height,width,height);
 	}
 
@@ -123,6 +130,94 @@ static SDL_Texture *VIDEO_CreateTexture(int width, int height)
 	//
 	return SDL_CreateTexture(gpRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, texture_width, texture_height);
 }
+#elif defined(PANDORA)
+static int VIDEO_SoftStretch(SDL_Surface *src, SDL_Rect *srcrect,
+                             SDL_Surface *dst, SDL_Rect *dstrect)
+{
+   int src_x, src_y, src_w, src_h;
+   if (srcrect != NULL)
+   {
+      src_x = srcrect->x;
+      src_y = srcrect->y;
+      src_w = srcrect->w;
+      src_h = srcrect->h;
+   }
+   else
+   {
+      src_x = 0;
+      src_y = 0;
+      src_w = src->w;
+      src_h = src->h;
+   }
+
+   int dst_x, dst_y, dst_w, dst_h;
+   if (dstrect != NULL)
+   {
+      dst_x = dstrect->x;
+      dst_y = dstrect->y;
+      dst_w = dstrect->w;
+      dst_h = dstrect->h;
+   }
+   else
+   {
+      dst_x = 0;
+      dst_y = 0;
+      dst_w = dst->w;
+      dst_h = dst->h;
+   }
+
+   if ((src_w != dst_w) || (src_h != dst_h))
+   {
+      return SDL_SoftStretch(src, srcrect, dst, dstrect);
+   }
+
+   int srclocked = 0;
+   if (SDL_MUSTLOCK(src))
+   {
+      if (SDL_LockSurface(src))
+      {
+         return -1;
+      }
+      else
+      {
+         srclocked = 1;
+      }
+   }
+
+   int dstlocked = 0;
+   if (SDL_MUSTLOCK(dst))
+   {
+      if (SDL_LockSurface(dst))
+      {
+         if (srclocked) SDL_UnlockSurface(src);
+         return -1;
+      }
+      else
+      {
+         dstlocked = 1;
+      }
+   }
+
+   int bpp = src->format->BytesPerPixel;
+   int srcpitch = src->pitch;
+   uint8_t *srcp = (uint8_t *)(src_y * srcpitch + src_x * bpp + (uintptr_t)src->pixels);
+   int dstpitch = dst->pitch;
+   uint8_t *dstp = (uint8_t *)(dst_y * dstpitch + dst_x * bpp + (uintptr_t)dst->pixels);
+   src_w *= bpp;
+
+   for (; src_h != 0; src_h--)
+   {
+      memcpy(dstp, srcp, src_w);
+      srcp += srcpitch;
+      dstp += dstpitch;
+   }
+
+   if (dstlocked) SDL_UnlockSurface(dst);
+   if (srclocked) SDL_UnlockSurface(src);
+
+   return 0;
+}
+#define SDL_SoftStretch VIDEO_SoftStretch
 #endif
 
 void NullFunc() {}
@@ -169,7 +264,7 @@ VIDEO_Startup(
 	   gRenderBackend.RenderCopy = VIDEO_GLSL_RenderCopy;
    }
 #endif
-	
+
    gRenderBackend.Init();
 
    //
@@ -280,6 +375,20 @@ VIDEO_Startup(
 	}
 # endif
 
+#ifdef PANDORA
+   gpScreenFinal = SDL_SetVideoMode(gConfig.dwScreenWidth, gConfig.dwScreenHeight, 32, PAL_VIDEO_INIT_FLAGS);
+   if (gpScreenFinal == NULL)
+   {
+      return -1;
+   }
+
+   gpScreenReal = SDL_CreateRGBSurface(SDL_SWSURFACE, gConfig.dwScreenWidth, gConfig.dwScreenHeight, 8, 0, 0, 0, 0);
+   if (gpScreenReal == NULL)
+   {
+      VIDEO_Shutdown();
+      return -2;
+   }
+#else
    //
    // Create the screen surface.
    //
@@ -301,6 +410,7 @@ VIDEO_Startup(
    {
       return -1;
    }
+#endif
 
    gpPalette = gpScreenReal->format->palette;
 
@@ -407,13 +517,19 @@ VIDEO_Shutdown(
    {
       SDL_FreePalette(gpPalette);
    }
+#else
+#ifdef PANDORA
+   gpScreenFinal = NULL;
+#endif
 #endif
    gpPalette = NULL;
 
+#if SDL_VERSION_ATLEAST(2,0,0) || defined(PANDORA)
    if (gpScreenReal != NULL)
    {
       SDL_FreeSurface(gpScreenReal);
    }
+#endif
    gpScreenReal = NULL;
 }
 
@@ -571,7 +687,12 @@ VIDEO_UpdateScreen(
 #if SDL_VERSION_ATLEAST(2,0,0)
    gRenderBackend.RenderCopy();
 #else
+#ifdef PANDORA
+    SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+    SDL_Flip(gpScreenFinal);
+#else
    SDL_UpdateRect(gpScreenReal, dstrect.x, dstrect.y, dstrect.w, dstrect.h);
+#endif
 #endif
 
    if (SDL_MUSTLOCK(gpScreenReal))
@@ -626,6 +747,9 @@ VIDEO_SetPalette(
    SDL_SetPalette(gpScreen, SDL_LOGPAL | SDL_PHYSPAL, rgPalette, 0, 256);
    SDL_SetPalette(gpScreenBak, SDL_LOGPAL | SDL_PHYSPAL, rgPalette, 0, 256);
    SDL_SetPalette(gpScreenReal, SDL_LOGPAL | SDL_PHYSPAL, rgPalette, 0, 256);
+#ifdef PANDORA
+   VIDEO_UpdateScreen(NULL);
+#else
 # if defined(PAL_FORCE_UPDATE_ON_PALETTE_SET)
    {
       static UINT32 time = 0;
@@ -636,6 +760,7 @@ VIDEO_SetPalette(
       }
    }
 # endif
+#endif
 #endif
 }
 
@@ -683,6 +808,7 @@ VIDEO_Resize(
 
    VIDEO_UpdateScreen(&rect);
 #else
+#if !defined(PANDORA)
    DWORD                    flags;
    PAL_LARGE SDL_Color      palette[256];
    int                      i, bpp;
@@ -705,7 +831,6 @@ VIDEO_Resize(
    flags = gpScreenReal->flags;
    bpp = gpScreenReal->format->BitsPerPixel;
 
-   SDL_FreeSurface(gpScreenReal);
    gpScreenReal = SDL_SetVideoMode(w, h, bpp, flags);
 
    if (gpScreenReal == NULL)
@@ -717,6 +842,7 @@ VIDEO_Resize(
    }
 
    SDL_SetPalette(gpScreenReal, SDL_PHYSPAL | SDL_LOGPAL, palette, 0, i);
+#endif
    VIDEO_UpdateScreen(NULL);
 
    gpPalette = gpScreenReal->format->palette;
@@ -800,6 +926,7 @@ VIDEO_ToggleFullscreen(
 		gConfig.fFullScreen = TRUE;
 	}
 #else
+#if !defined(PANDORA)
    DWORD                    flags;
    PAL_LARGE SDL_Color      palette[256];
    int                      i, bpp;
@@ -840,12 +967,7 @@ VIDEO_ToggleFullscreen(
    }
 
    //
-   // Free the original screen surface
-   //
-   SDL_FreeSurface(gpScreenReal);
-
-   //
-   // ... and create a new one
+   // Create new screen surface
    //
    if (gConfig.dwScreenWidth == 640 && gConfig.dwScreenHeight == 400 && (flags & SDL_FULLSCREEN))
    {
@@ -861,6 +983,7 @@ VIDEO_ToggleFullscreen(
    }
 
    VIDEO_SetPalette(palette);
+#endif
 
    //
    // Update the screen
@@ -907,7 +1030,12 @@ VIDEO_ChangeDepth(
    //
    // Create the screen surface.
    //
-   SDL_FreeSurface(gpScreenReal);
+#ifdef PANDORA
+   if (bpp == 0)
+   {
+      gpScreenFinal = SDL_SetVideoMode(w, h, 32, PAL_VIDEO_INIT_FLAGS);
+   }
+#else
    gpScreenReal = SDL_SetVideoMode(w, h, (bpp == 0)?8:bpp, flags);
 
    if (gpScreenReal == NULL)
@@ -917,6 +1045,7 @@ VIDEO_ChangeDepth(
       //
       gpScreenReal = SDL_SetVideoMode(PAL_DEFAULT_WINDOW_WIDTH, PAL_DEFAULT_WINDOW_HEIGHT, (bpp == 0)?8:bpp, SDL_SWSURFACE);
    }
+#endif
 
    gpPalette = gpScreenReal->format->palette;
 #endif
@@ -1052,7 +1181,12 @@ VIDEO_SwitchScreen(
 #if SDL_VERSION_ATLEAST(2, 0, 0)
       gRenderBackend.RenderCopy();
 #else
+#ifdef PANDORA
+      SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+      SDL_Flip(gpScreenFinal);
+#else
       SDL_UpdateRect(gpScreenReal, 0, 0, gpScreenReal->w, gpScreenReal->h);
+#endif
 #endif
 
 	  if (SDL_MUSTLOCK(gpScreenReal))
@@ -1195,7 +1329,12 @@ VIDEO_FadeScreen(
 #if SDL_VERSION_ATLEAST(2, 0, 0)
             gRenderBackend.RenderCopy();
 #else
+#ifdef PANDORA
+            SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+            SDL_Flip(gpScreenFinal);
+#else
 			SDL_UpdateRect(gpScreenReal, 0, 0, gpScreenReal->w, gpScreenReal->h);
+#endif
 #endif
             g_wShakeTime--;
          }
@@ -1210,7 +1349,12 @@ VIDEO_FadeScreen(
 #if SDL_VERSION_ATLEAST(2, 0, 0)
             gRenderBackend.RenderCopy();
 #else
+#ifdef PANDORA
+            SDL_BlitSurface(gpScreenReal, NULL, gpScreenFinal, NULL);
+            SDL_Flip(gpScreenFinal);
+#else
             SDL_UpdateRect(gpScreenReal, 0, 0, gpScreenReal->w, gpScreenReal->h);
+#endif
 #endif
          }
       }
@@ -1389,6 +1533,13 @@ VIDEO_DrawSurfaceToScreen(
    }
    SDL_BlitScaled(pSurface, NULL, gpScreenReal, NULL);
    gRenderBackend.RenderCopy();
+#elif defined(PANDORA)
+   if (pSurface->h != gpScreenFinal->h)
+   {
+      gpScreenFinal = SDL_SetVideoMode(pSurface->w, pSurface->h, 32, PAL_VIDEO_INIT_FLAGS);
+   }
+   VIDEO_Platform_Blit_15_32(pSurface, gpScreenFinal);
+   SDL_Flip(gpScreenFinal);
 #else
    SDL_Surface   *pCompatSurface;
    SDL_Rect       rect;

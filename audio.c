@@ -30,6 +30,9 @@
 #include "midi.h"
 #include "aviplay.h"
 #include <math.h>
+#ifdef PANDORA
+#include <arm_neon.h>
+#endif
 
 /* WASAPI need fewer samples for less gapping */
 #ifndef PAL_AUDIO_FORCE_BUFFER_SIZE_WASAPI
@@ -75,6 +78,38 @@ AUDIO_MixNative(
 	int        samples
 )
 {
+#ifdef PANDORA
+	for (; samples >= 8; samples -= 8)
+	{
+		vst1q_s16(dst, vqaddq_s16(vld1q_s16(src), vld1q_s16(dst)));
+		src += 8;
+		dst += 8;
+	}
+	Uint32 val1, val2;
+	asm volatile (
+		"cmp %[samples], #1\n"
+		"blt 3f\n"
+		"beq 2f\n"
+		"1:\n"
+		"ldr %[val1], [%[src]], #4\n"
+		"sub %[samples], %[samples], #2\n"
+		"ldr %[val2], [%[dst]]\n"
+		"cmp %[samples], #1\n"
+		"qadd16 %[val2], %[val1], %[val2]\n"
+		"str %[val2], [%[dst]], #4\n"
+		"bgt 1b\n"
+		"blt 3f\n"
+		"2:\n"
+		"ldrh %[val1], [%[src]]\n"
+		"ldrh %[val2], [%[dst]]\n"
+		"qadd16 %[val2], %[val1], %[val2]\n"
+		"strh %[val2], [%[dst]]\n"
+		"3:\n"
+		: [src] "+r" (src), [dst] "+r" (dst), [samples] "+r" (samples), [val1] "=&r" (val1), [val2] "=&r" (val2)
+		:
+		: "cc", "memory"
+	);
+#else
 	while (samples > 0)
 	{
 		int val = *src++ + *dst;
@@ -86,6 +121,7 @@ AUDIO_MixNative(
 			*dst++ = (short)val;
 		samples--;
 	}
+#endif
 }
 
 PAL_FORCE_INLINE
@@ -98,6 +134,17 @@ AUDIO_AdjustVolume(
 {
 	if (iVolume == SDL_MIX_MAXVOLUME) return;
 	if (iVolume == 0) { memset(srcdst, 0, samples << 1); return; }
+#if defined(PANDORA) && (SDL_MIX_MAXVOLUME == 128)
+	const int16x4_t iVolumex4 = vdup_n_s16(iVolume);
+	const int32x4_t iZerox4 = vmovq_n_s32(0);
+	for (; samples >= 4; samples -= 4)
+	{
+		int32x4_t valx4 = vmull_s16(vld1_s16(srcdst), iVolumex4);
+		valx4 += (int32x4_t)(vcltq_s32(valx4, iZerox4) & 127);
+		vst1_s16(srcdst, vshrn_n_s32(valx4, 7));
+		srcdst += 4;
+	}
+#endif
 	while (samples > 0)
 	{
 		*srcdst = *srcdst * iVolume / SDL_MIX_MAXVOLUME;
@@ -206,7 +253,9 @@ AUDIO_OpenDevice(
 
 --*/
 {
+#if SDL_VERSION_ATLEAST(2,0,0)
    SDL_AudioSpec spec;
+#endif
 
    if (gAudioDevice.fOpened)
    {
@@ -259,9 +308,24 @@ AUDIO_OpenDevice(
 
    UTIL_LogOutput(LOGLEVEL_VERBOSE, "OpenAudio: requesting audio spec:freq %d, format %d, channels %d, samples %d\n", gAudioDevice.spec.freq, gAudioDevice.spec.format,  gAudioDevice.spec.channels, gAudioDevice.spec.samples);
 
-   if (SDL_OpenAudio(&gAudioDevice.spec, &spec) < 0)
+#if SDL_VERSION_ATLEAST(2,0,0)
+   #ifdef SDL_AUDIO_ALLOW_SAMPLES_CHANGE
+   #define AUDIO_ALLOWED_CHANGES SDL_AUDIO_ALLOW_SAMPLES_CHANGE
+   #else
+   #define AUDIO_ALLOWED_CHANGES 0
+   #endif
+   gAudioDevice.id = SDL_OpenAudioDevice((gConfig.iAudioDevice >= 0 ? SDL_GetAudioDeviceName(gConfig.iAudioDevice, 0) : NULL), 0, &gAudioDevice.spec, &spec, AUDIO_ALLOWED_CHANGES);
+   if (gAudioDevice.id == 0)
+#else
+   if (SDL_OpenAudio(&gAudioDevice.spec, NULL) < 0)
+#endif
    {
+#if SDL_VERSION_ATLEAST(2,0,0)
       UTIL_LogOutput(LOGLEVEL_VERBOSE, "OpenAudio ERROR: %s, got spec:freq %d, format %d, channels %d, samples %d\n", SDL_GetError(), spec.freq, spec.format, spec.channels,  spec.samples);
+      gAudioDevice.spec.samples = spec.samples;
+#else
+      UTIL_LogOutput(LOGLEVEL_VERBOSE, "OpenAudio ERROR: %s\n", SDL_GetError());
+#endif
       //
       // Failed
       //
@@ -269,8 +333,12 @@ AUDIO_OpenDevice(
    }
    else
    {
+#if SDL_VERSION_ATLEAST(2,0,0)
       UTIL_LogOutput(LOGLEVEL_VERBOSE, "OpenAudio succeed, got spec:freq %d, format %d, channels %d, samples %d\n", spec.freq, spec.format, spec.channels,  spec.samples);
-      gAudioDevice.pSoundBuffer = malloc(gConfig.wAudioBufferSize * gConfig.iAudioChannels * sizeof(short));
+#else
+      UTIL_LogOutput(LOGLEVEL_VERBOSE, "OpenAudio succeed, got spec:samples %d\n", gAudioDevice.spec.samples);
+#endif
+      gAudioDevice.pSoundBuffer = malloc(gAudioDevice.spec.samples * gConfig.iAudioChannels * sizeof(short));
    }
 
    gAudioDevice.fOpened = TRUE;
@@ -296,6 +364,9 @@ AUDIO_OpenDevice(
 	   break;
    case MUSIC_OPUS:
 	   gAudioDevice.pMusPlayer = OPUS_Init();
+	   break;
+   case MUSIC_SOFTMIDI:
+	   gAudioDevice.pMusPlayer = SOFTMIDI_Init();
 	   break;
    case MUSIC_MIDI:
 	   gAudioDevice.pMusPlayer = NULL;

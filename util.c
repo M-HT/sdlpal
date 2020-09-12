@@ -668,12 +668,12 @@ UTIL_CombinePath(
 			const char *path = va_arg(argptr, const char *);
 			int path_len = path ? strlen(path) : 0;
 			int append_delim = (i < numentry - 1 && path_len > 0 && !PAL_IS_PATH_SEPARATOR(path[path_len - 1]));
-			
+
 			for (int is_sep = 0, j = 0; j < path_len && buflen > (size_t)append_delim + 1; j++)
 			{
 				//
 				// Skip continuous path separators
-				// 
+				//
 				if (PAL_IS_PATH_SEPARATOR(path[j]))
 				{
 					if (is_sep)
@@ -690,7 +690,7 @@ UTIL_CombinePath(
 			}
 			//
 			// Make sure a path delimeter is append to the destination if this is not the last entry
-			// 
+			//
 			if (append_delim)
 			{
 				*buffer++ = PAL_PATH_SEPARATORS[0];
@@ -909,7 +909,7 @@ UTIL_LogOutput(
 	n = (n == -1) ? PAL_LOG_BUFFER_EXTRA_SIZE + PAL_LOG_BUFFER_SIZE - 1 : n + PAL_LOG_BUFFER_EXTRA_SIZE;
 	_log_buffer[n--] = '\0';
 	if (_log_buffer[n] != '\n') _log_buffer[n] = '\n';
-    
+
     if( level == LOGLEVEL_FATAL )
         TerminateOnError(_log_buffer);
 
@@ -959,7 +959,7 @@ UTIL_LogSetPrelude(
 {
     memset(_log_prelude, 0, sizeof(_log_prelude));
     if( prelude )
-        strncpy(_log_prelude, prelude, sizeof(_log_prelude));
+        strncpy(_log_prelude, prelude, sizeof(_log_prelude)-1);
 }
 
 #if PAL_NEED_STRCASESTR

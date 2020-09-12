@@ -33,6 +33,10 @@
 #define PAL_HAS_TOUCH     0
 #endif
 
+#if !defined(PAL_CONFIG_FILENAME)
+#define PAL_CONFIG_FILENAME "sdlpal.cfg"
+#endif
+
 #define MAKE_BOOLEAN(defv, minv, maxv)  { .bValue = defv }, { .bValue = minv }, { .bValue = maxv }
 #define MAKE_INTEGER(defv, minv, maxv)  { .iValue = defv }, { .iValue = minv }, { .iValue = maxv }
 #define MAKE_UNSIGNED(defv, minv, maxv) { .uValue = defv }, { .uValue = minv }, { .uValue = maxv }
@@ -81,7 +85,7 @@ static const ConfigItem gConfigItems[PALCFG_ALL_MAX] = {
 	{ PALCFG_SHADER,            PALCFG_STRING,   "Shader",             6, MAKE_STRING(NULL) },
 };
 
-static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "OPUS", "RAW" };
+static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "OPUS", "RAW", "SOFTMIDI" };
 static const char *cd_types[] = { "NONE", "MP3", "OGG", "OPUS", "RAW" };
 static const char *opl_cores[] = { "MAME", "DBFLT", "DBINT", "NUKED" };
 static const char *opl_chips[] = { "OPL2", "OPL3" };
@@ -373,7 +377,7 @@ PAL_LoadConfig(
 
 	for (PALCFG_ITEM i = PALCFG_ALL_MIN; i < PALCFG_ALL_MAX; i++) values[i] = gConfigItems[i].DefaultValue;
 
-	if (fFromFile && (fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, "sdlpal.cfg", "r")))
+	if (fFromFile && (fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, PAL_CONFIG_FILENAME, "r")))
 	{
 		PAL_LARGE char buf[512];
 
@@ -433,6 +437,8 @@ PAL_LoadConfig(
 				{
 					if (PAL_HAS_NATIVEMIDI && SDL_strncasecmp(value.sValue, "MIDI", slen) == 0)
 						eMusicType = MUSIC_MIDI;
+					else if (PAL_HAS_SOFTMIDI && SDL_strncasecmp(value.sValue, "SOFTMIDI", slen) == 0)
+						eMusicType = MUSIC_SOFTMIDI;
 					else if (PAL_HAS_MP3 && SDL_strncasecmp(value.sValue, "MP3", slen) == 0)
 						eMusicType = MUSIC_MP3;
 					else if (PAL_HAS_OGG && SDL_strncasecmp(value.sValue, "OGG", slen) == 0)
@@ -574,12 +580,12 @@ PAL_LoadConfig(
 		gConfig.dwScreenWidth = PAL_DEFAULT_WINDOW_WIDTH;
 		gConfig.dwScreenHeight = PAL_DEFAULT_WINDOW_HEIGHT;
 	}
-    
+
     if( gConfig.dwTextureWidth == 0 && gConfig.dwTextureHeight == 0 ) {
         gConfig.dwTextureWidth = PAL_DEFAULT_TEXTURE_WIDTH;
         gConfig.dwTextureHeight = PAL_DEFAULT_TEXTURE_HEIGHT;
     }
-    
+
     if(gConfig.fEnableGLSL && !gConfig.pszShader) {
         UTIL_LogOutput(LOGLEVEL_ERROR, "Filter backend GLSL enabled but no valid effect file specified");
         gConfig.fEnableGLSL = FALSE;
@@ -593,7 +599,7 @@ PAL_SaveConfig(
 )
 {
 	char buf[512];
-	FILE *fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, "sdlpal.cfg", "w");
+	FILE *fp = UTIL_OpenFileAtPathForMode(PAL_CONFIG_PREFIX, PAL_CONFIG_FILENAME, "w");
 
 	if (fp)
 	{

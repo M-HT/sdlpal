@@ -22,9 +22,11 @@
 
 #include "main.h"
 
+#if PAL_HAS_NATIVEMIDI
 static int  g_iMidiCurrent = -1;
 static NativeMidiSong *g_pMidi = NULL;
 static int  g_iMidiVolume = PAL_MAX_VOLUME;
+#endif
 
 void
 MIDI_SetVolume(

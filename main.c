@@ -148,7 +148,7 @@ PAL_Shutdown(
    PAL_FreeText();
    PAL_ShutdownInput();
    VIDEO_Shutdown();
-   
+
    //
    // global needs be free in last
    // since subsystems may needs config content during destroy
@@ -470,7 +470,7 @@ main(
 {
 #if !defined( __EMSCRIPTEN__ ) && !defined(__WINRT__)
    memset(gExecutablePath,0,PAL_MAX_PATH);
-   strncpy(gExecutablePath, argv[0], PAL_MAX_PATH);
+   strncpy(gExecutablePath, argv[0], PAL_MAX_PATH-1);
 #endif
 
 #if PAL_HAS_PLATFORM_STARTUP
