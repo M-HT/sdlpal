@@ -1,14 +1,13 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -55,7 +54,10 @@ static uint32_t gVAOIds[MAX_INDEX];
 static uint32_t gVBOIds[MAX_INDEX];
 static uint32_t gEBOId;
 static uint32_t gPassID = -1;
-static int gMVPSlots[MAX_INDEX], gHDRSlot=-1, gTouchOverlaySlot=-1;
+static int gMVPSlots[MAX_INDEX];
+static int gHDRSlot = -1;
+static int gUseTouchOverlaySlot = -1;
+static int gTouchOverlaySlot = -1;
 static int VAOSupported = 1;
 static int glversion_major, glversion_minor;
 static int glslversion_major, glslversion_minor;
@@ -192,6 +194,7 @@ precision mediump float;            \r\n\
 COMPAT_VARYING vec2 v_texCoord;     \r\n\
 uniform sampler2D tex0;             \r\n\
 uniform int HDR;                    \r\n\
+uniform int useTouchOverlay;        \r\n\
 uniform sampler2D TouchOverlay;     \r\n\
 vec3 ACESFilm(vec3 x)               \r\n\
 {                                   \r\n\
@@ -238,6 +241,7 @@ if( HDR > 0 )                       \r\n\
 color = ACESFilm(color);            \r\n\
 color = rgb_to_srgb(color);         \r\n\
 FragColor.rgb=color;                \r\n\
+if( useTouchOverlay > 0 )           \r\n\
 FragColor = blend(FragColor, COMPAT_TEXTURE(TouchOverlay , v_texCoord.xy));     \r\n\
 }";
 
@@ -276,31 +280,42 @@ char *skip_version(char *src) {
 GLuint compileShader(const char* sourceOrFilename, GLuint shaderType, int is_source) {
     //DONT CHANGE
 #define SHADER_TYPE(shaderType) (shaderType == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT")
-    char *pShaderBuffer;
-    char *source = (char*)sourceOrFilename;
-    char *ptr = NULL;
-    if(!is_source)
+    char* pShaderBuffer;
+    char* source = (char*)sourceOrFilename;
+    char* ptr = NULL;
+    int lines = -1;
+    if (!is_source)
         source = readShaderFile(sourceOrFilename, shaderType);
-    size_t sourceLen = strlen(source)*2;
+    size_t sourceLen = strlen(source) * 2;
     pShaderBuffer = malloc(sourceLen);
-    memset(pShaderBuffer,0, sourceLen);
+    memset(pShaderBuffer, 0, sourceLen);
 #if !GLES
-    sprintf(pShaderBuffer,"#version %d%02d\r\n",glslversion_major, glslversion_minor);
+    sprintf(pShaderBuffer, "#version %d%02d\r\n", glslversion_major, glslversion_minor);
+    lines++;
 #else
-    sprintf(pShaderBuffer,"#version %d%02d %s\r\n", glslversion_major, glslversion_minor, glslversion_major >= 3 ? "es" : "");
-    if( SDL_GL_ExtensionSupported("GL_OES_standard_derivatives") )
-        sprintf(pShaderBuffer,"%s#extension GL_OES_standard_derivatives : enable\r\n",pShaderBuffer);
-    if( SDL_GL_ExtensionSupported("GL_EXT_shader_texture_lod") )
-        sprintf(pShaderBuffer,"%s#extension GL_EXT_shader_texture_lod : enable\r\n",pShaderBuffer);
-    
+    sprintf(pShaderBuffer, "#version %d%02d %s\r\n", glslversion_major, glslversion_minor, glslversion_major >= 3 ? "es" : "");
+    lines++;
+    if (SDL_GL_ExtensionSupported("GL_OES_standard_derivatives")) {
+        sprintf(pShaderBuffer, "%s#extension GL_OES_standard_derivatives : enable\r\n", pShaderBuffer);
+        lines++;
+    }
+    if (SDL_GL_ExtensionSupported("GL_EXT_shader_texture_lod")) {
+        sprintf(pShaderBuffer, "%s#extension GL_EXT_shader_texture_lod : enable\r\n", pShaderBuffer);
+        lines++;
+    }
+
     // should be deduced via GL_ES/GL_FRAGMENT_PRECISION_HIGH combination since both is predefined
     // but unknown why manual define is a must for WebGL2
-    if( glslversion_major >= 3 )
-        sprintf(pShaderBuffer,"%sprecision highp float;\r\n",pShaderBuffer);
+    if (glslversion_major >= 3) {
+        sprintf(pShaderBuffer, "%sprecision highp float;\r\n", pShaderBuffer);
+        lines++;
+    }
 #endif
 #if SUPPORT_PARAMETER_UNIFORM
     sprintf(pShaderBuffer,"%s#define PARAMETER_UNIFORM\r\n",pShaderBuffer);
+    lines++;
 #endif
+    sprintf(pShaderBuffer, "%s#line %d\r\n", pShaderBuffer, lines);
     // remove #pragma parameter from glsl, avoid glsl compiler（ I mean you, atom ) complains
     while((ptr = strstr(source, "#pragma parameter"))!= NULL) {
         char *ptrEnd = strchr(ptr, '\r');
@@ -435,6 +450,10 @@ void setupShaderParams(int pass){
         if(gHDRSlot < 0)
             UTIL_LogOutput(LOGLEVEL_DEBUG, "uniform HDR not exist\n");
 
+        gUseTouchOverlaySlot = glGetUniformLocation(gProgramIds[pass], "useTouchOverlay");
+        if (gUseTouchOverlaySlot < 0)
+            UTIL_LogOutput(LOGLEVEL_DEBUG, "uniform useTouchOverlay not exist\n");
+
         gTouchOverlaySlot = glGetUniformLocation(gProgramIds[pass], "TouchOverlay");
         if(gTouchOverlaySlot < 0)
             UTIL_LogOutput(LOGLEVEL_DEBUG, "uniform TouchOverlay not exist\n");
@@ -502,17 +521,26 @@ void SetGroupUniforms(pass_uniform_locations *pSlot, int shaderID, int texture_u
     glUniform1i(pSlot->texture_uniform_location, texture_unit);
 
     GLfloat size[2];
-    if( is_pass ) {
-        size[0] = (shaderID > 0) ? gGLSLP.shader_params[shaderID-1].FBO.width  : 320;
-        size[1] = (shaderID > 0) ? gGLSLP.shader_params[shaderID-1].FBO.height : 200;
-    }else
-        size[0] = 320, size[1] = 200;
-    glUniform2fv(pSlot->texture_size_uniform_location, 1, size);
+    if( is_pass && shaderID > 0 && shaderID <= gGLSLP.shaders ) {
+        size[0] = gGLSLP.shader_params[shaderID-1].FBO.pow_width;
+        size[1] = gGLSLP.shader_params[shaderID-1].FBO.pow_height;
+    }
+    else {
+        size[0] = 320;
+        size[1] = 200;
+    }
     glUniform2fv(pSlot->input_size_uniform_location, 1, size);
-    size[0] = is_pass ? gGLSLP.shader_params[shaderID].FBO.width  : gConfig.dwTextureWidth;
-    size[1] = is_pass ? gGLSLP.shader_params[shaderID].FBO.height : gConfig.dwTextureHeight;
+    glUniform2fv(pSlot->texture_size_uniform_location, 1, size);
+    if (is_pass && shaderID >= 0 && shaderID < gGLSLP.shaders) {
+        size[0] = gGLSLP.shader_params[shaderID].FBO.pow_width;
+        size[1] = gGLSLP.shader_params[shaderID].FBO.pow_height;
+    }
+    else {
+        size[0] = gGLSLP.shader_params[gGLSLP.shaders - 1].FBO.pow_width;
+        size[1] = gGLSLP.shader_params[gGLSLP.shaders - 1].FBO.pow_height;
+    }
     glUniform2fv(pSlot->output_size_uniform_location,  1, size);
-    
+
 //    glEnableVertexAttribArray(pSlot->tex_coord_attrib_location);
 //    glVertexAttribPointer(pSlot->tex_coord_attrib_location, 4, GL_FLOAT, GL_FALSE, sizeof(struct VertexDataFormat), (GLvoid*)offsetof(struct VertexDataFormat, texCoord));
 }
@@ -558,7 +586,7 @@ int VIDEO_RenderTexture(SDL_Renderer * renderer, SDL_Texture * texture, const SD
     
     int texture_unit_used = 1;
     int touchoverlay_texture_slot = -1;
-    if( pass == 0 ) {
+    if( pass == 0 && gpTouchOverlay) {
         glActiveTexture(GL_TEXTURE0+texture_unit_used);
         SDL_GL_BindTexture(gpTouchOverlay, NULL, NULL);
         touchoverlay_texture_slot = texture_unit_used++;
@@ -608,7 +636,9 @@ int VIDEO_RenderTexture(SDL_Renderer * renderer, SDL_Texture * texture, const SD
     
     if( pass == 0 ) {
         GLint HDR = gConfig.fEnableHDR;
+        GLint useTouchOverlay = gConfig.fUseTouchOverlay;
         glUniform1i(gHDRSlot, HDR);
+        glUniform1i(gUseTouchOverlaySlot, useTouchOverlay);
         glUniform1i(gTouchOverlaySlot, touchoverlay_texture_slot);
     }
 
@@ -631,7 +661,7 @@ int VIDEO_RenderTexture(SDL_Renderer * renderer, SDL_Texture * texture, const SD
         //self
         SetGroupUniforms(&gGLSLP.shader_params[shaderID].self_slots,         shaderID, 0, false );
         //orig
-        SetGroupUniforms(&gGLSLP.shader_params[shaderID].orig_slots,         shaderID, orig_texture_unit, false );
+        SetGroupUniforms(&gGLSLP.shader_params[shaderID].orig_slots, shaderID, orig_texture_unit, false);
         //prev-prev%
         for( int i = 1; i < (frames_passed_limit ? MAX_TEXTURES : min(frames, MAX_TEXTURES)); i++ )
             SetGroupUniforms(&gGLSLP.shader_params[shaderID].prev_slots[i],         i, frame_prev_texture_units[i], false );
@@ -927,7 +957,7 @@ void VIDEO_GLSL_Init() {
 #   endif
 #endif
 
-    Uint32 flags = PAL_VIDEO_INIT_FLAGS | (gConfig.fFullScreen ? SDL_WINDOW_BORDERLESS : 0) | SDL_WINDOW_OPENGL;
+    Uint32 flags = PAL_VIDEO_INIT_FLAGS | SDL_WINDOW_OPENGL;
     
     UTIL_LogOutput(LOGLEVEL_DEBUG, "requesting to create window with flags: %s %s profile latest available\n", SDL_GetHint( SDL_HINT_RENDER_DRIVER ),  get_gl_profile(get_SDL_GLAttribute(SDL_GL_CONTEXT_PROFILE_MASK)));
     gpWindow = SDL_CreateWindow("Pal", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, gConfig.dwScreenWidth, gConfig.dwScreenHeight, flags);
@@ -1049,7 +1079,7 @@ void VIDEO_GLSL_Setup() {
 
     GLSLP tempGLSLP;
     memset(&tempGLSLP,0,sizeof(GLSLP));
-    if( access(PAL_va(0,"%s%s%s",gConfig.pszGamePath, PAL_NATIVE_PATH_SEPARATOR,MID_GLSLP), 0) == 0 && parse_glslp(MID_GLSLP,&tempGLSLP) && tempGLSLP.orig_filter && strcmp( tempGLSLP.orig_filter, gConfig.pszShader ) == 0 ) {
+    if( UTIL_IsFileExist(MID_GLSLP) && parse_glslp(MID_GLSLP,&tempGLSLP) && tempGLSLP.orig_filter && strcmp( tempGLSLP.orig_filter, gConfig.pszShader ) == 0 ) {
         //same file, not needed to parse again
         memcpy(&gGLSLP,&tempGLSLP,sizeof(GLSLP));
         UTIL_LogOutput(LOGLEVEL_DEBUG, "[PASS 2] load parametered filter preset\n");

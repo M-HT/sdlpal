@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -28,9 +27,9 @@
 #define CHUNKNUM_SPRITEUI                  9
 
 #define MENUITEM_COLOR                     0x4F
-#define MENUITEM_COLOR_INACTIVE            0x1C
+#define MENUITEM_COLOR_INACTIVE            0x18
 #define MENUITEM_COLOR_CONFIRMED           0x2C
-#define MENUITEM_COLOR_SELECTED_INACTIVE   0x1F
+#define MENUITEM_COLOR_SELECTED_INACTIVE   0x1C
 #define MENUITEM_COLOR_SELECTED_FIRST      0xF9
 #define MENUITEM_COLOR_SELECTED_TOTALNUM   6
 
@@ -41,7 +40,7 @@
 
 #define MENUITEM_COLOR_EQUIPPEDITEM        0xC8
 
-#define DESCTEXT_COLOR                     0x2E
+#define DESCTEXT_COLOR                     0x3C
 
 #define MAINMENU_BACKGROUND_FBPNUM         (gConfig.fIsWIN95 ? 2 :60)
 
@@ -109,6 +108,8 @@
 
 #define SPRITENUM_SLASH                    39
 #define SPRITENUM_ITEMBOX                  70
+#define SPRITENUM_CURSOR_YELLOW_UP         66
+#define SPRITENUM_CURSOR_UP                67
 #define SPRITENUM_CURSOR_YELLOW            68
 #define SPRITENUM_CURSOR                   69
 #define SPRITENUM_PLAYERINFOBOX            18

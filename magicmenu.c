@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -208,12 +207,12 @@ PAL_MagicSelectionMenuUpdate(
       //
       // Draw the MP of the selected magic.
       //
-      PAL_CreateSingleLineBox(PAL_XY(0, 0), 5, FALSE);
+      PAL_CreateSingleLineBox(PAL_XY(0, 0), PAL_X(gConfig.ScreenLayout.MagicMPDescLines), FALSE);
       PAL_RLEBlitToSurface(PAL_SpriteGetFrame(gpSpriteUI, SPRITENUM_SLASH),
-         gpScreen, PAL_XY(45, 14));
-      PAL_DrawNumber(rgMagicItem[g_iCurrentItem].wMP, 4, PAL_XY(15, 14),
-         kNumColorYellow, kNumAlignRight);
-      PAL_DrawNumber(g_wPlayerMP, 4, PAL_XY(50, 14), kNumColorCyan, kNumAlignRight);
+          gpScreen, gConfig.ScreenLayout.MagicMPSlashPos);
+      PAL_DrawNumber(rgMagicItem[g_iCurrentItem].wMP, 4, gConfig.ScreenLayout.MagicMPNeededPos,
+          kNumColorYellow, kNumAlignRight);
+      PAL_DrawNumber(g_wPlayerMP, 4, gConfig.ScreenLayout.MagicMPCurrentPos, kNumColorCyan, kNumAlignRight);
    }
 
 
@@ -280,12 +279,17 @@ PAL_MagicSelectionMenuUpdate(
       if (rgMagicItem[g_iCurrentItem].fEnabled)
       {
          j = g_iCurrentItem % iItemsPerLine;
-		 k = (g_iCurrentItem < iItemsPerLine * iPageLineOffset) ? (g_iCurrentItem / iItemsPerLine) : iPageLineOffset;
+         k = (g_iCurrentItem < iItemsPerLine * iPageLineOffset) ? (g_iCurrentItem / iItemsPerLine) : iPageLineOffset;
 
-		 j = 35 + j * iItemTextWidth;
-		 k = 54 + k * 18 + iBoxYOffset;
+         j = 35 + j * iItemTextWidth;
+         k = 54 + k * 18 + iBoxYOffset;
 
          PAL_DrawText(PAL_GetWord(rgMagicItem[g_iCurrentItem].wMagic), PAL_XY(j, k), MENUITEM_COLOR_CONFIRMED, FALSE, TRUE, FALSE);
+
+         //
+         // Draw the cursor on the current selected item
+         //
+         PAL_RLEBlitToSurface(PAL_SpriteGetFrame(gpSpriteUI, SPRITENUM_CURSOR), gpScreen, PAL_XY(j + iCursorXOffset, k + 10));
 
          return rgMagicItem[g_iCurrentItem].wMagic;
       }

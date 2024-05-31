@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -805,6 +804,19 @@ PAL_BattleUIUpdate(
    WORD             wPlayerRole, w;
    static int       s_iFrame = 0;
 
+   struct {
+      int               iSpriteNum;
+      PAL_POS           pos;
+      BATTLEUIACTION    action;
+   } rgItems[] =
+   {
+      {SPRITENUM_BATTLEICON_ATTACK,    PAL_XY(27, 140), kBattleUIActionAttack},
+      {SPRITENUM_BATTLEICON_MAGIC,     PAL_XY(0, 155),  kBattleUIActionMagic},
+      {SPRITENUM_BATTLEICON_COOPMAGIC, PAL_XY(54, 155), kBattleUIActionCoopMagic},
+      {SPRITENUM_BATTLEICON_MISCMENU,  PAL_XY(27, 170), kBattleUIActionMisc}
+   };
+
+
    s_iFrame++;
 
    if (g_Battle.UI.fAutoAttack && !gpGlobals->fAutoBattle)
@@ -1017,18 +1029,6 @@ PAL_BattleUIUpdate(
       // Draw the icons
       //
       {
-         struct {
-            int               iSpriteNum;
-            PAL_POS           pos;
-            BATTLEUIACTION    action;
-         } rgItems[] =
-         {
-            {SPRITENUM_BATTLEICON_ATTACK,    PAL_XY(27, 140), kBattleUIActionAttack},
-            {SPRITENUM_BATTLEICON_MAGIC,     PAL_XY(0, 155),  kBattleUIActionMagic},
-            {SPRITENUM_BATTLEICON_COOPMAGIC, PAL_XY(54, 155), kBattleUIActionCoopMagic},
-            {SPRITENUM_BATTLEICON_MISCMENU,  PAL_XY(27, 170), kBattleUIActionMisc}
-         };
-
          if (g_Battle.UI.MenuState == kBattleMenuMain)
          {
             if (g_InputState.dir == kDirNorth)
@@ -1553,6 +1553,13 @@ PAL_BattleUIUpdate(
          PAL_BattleCommitAction(FALSE);
       }
 #endif
+
+      for (i = 0; i < 4; i++)
+      {
+         PAL_RLEBlitMonoColor(PAL_SpriteGetFrame(gpSpriteUI, rgItems[i].iSpriteNum),
+            gpScreen, rgItems[i].pos, 0, -4);
+      }
+
 
       j = SPRITENUM_BATTLE_ARROW_SELECTEDPLAYER;
       if (s_iFrame & 1)

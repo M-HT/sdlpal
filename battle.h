@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -111,12 +110,33 @@ typedef struct tagBATTLEPLAYER
    BATTLEACTION       action;               // action to perform
    BATTLEACTION       prevAction;           // action of the previous turn
    BOOL               fDefending;           // TRUE if player is defending
+   BOOL               fSecondAttack;           // FALSE for the first full attack, TRUE for the second full attack
    WORD               wPrevHP;              // HP value prior to action
    WORD               wPrevMP;              // MP value prior to action
 #ifndef PAL_CLASSIC
    SHORT              sTurnOrder;           // turn order
 #endif
 } BATTLEPLAYER;
+
+typedef enum tagBATTLESPRITETYPE
+{
+   kBattleSpriteTypeNone,
+   kBattleSpriteTypeEnemy,
+   kBattleSpriteTypePlayer,
+   kBattleSpriteTypeMagic,
+} BATTLESPRITETYPE;
+
+typedef struct tagBATTLESPRITESEQ
+{
+   WORD               wType;
+   WORD               wObjectIndex;
+   PAL_POS            pos;
+   SHORT              sLayerOffset;
+   BOOL               fHaveColorShift;
+} BATTLESPRITESEQ;
+
+#define MAX_BATTLE_MAGICSPRITE_ITEMS 3
+#define MAX_BATTLESPRITESEQ_ITEMS (MAX_ENEMIES_IN_TEAM + MAX_PLAYABLE_PLAYER_ROLES + MAX_BATTLE_MAGICSPRITE_ITEMS)
 
 typedef struct tagSUMMON
 {
@@ -140,6 +160,7 @@ typedef struct tagACTIONQUEUE
    BOOL       fIsEnemy;
    WORD       wDexterity;
    WORD       wIndex;
+   BOOL       fIsSecond;
 } ACTIONQUEUE;
 
 #define MAX_ACTIONQUEUE_ITEMS (MAX_PLAYERS_IN_PARTY + MAX_ENEMIES_IN_TEAM * 2)
@@ -161,6 +182,7 @@ typedef struct tagBATTLE
    LPSPRITE         lpSummonSprite;       // sprite of summoned god
    PAL_POS          posSummon;
    INT              iSummonFrame;         // current frame of the summoned god
+   BOOL             fSummonColorShift;
 
    INT              iExpGained;           // total experience value gained
    INT              iCashGained;          // total cash gained
@@ -182,6 +204,12 @@ typedef struct tagBATTLE
    WORD             wMovingPlayerIndex;   // current moving player index
 
    int              iBlow;
+
+   LPCBITMAPRLE     lpMagicBitmap;        // current magic frame bitmap
+
+   BATTLESPRITESEQ  SpriteDrawSeq[MAX_BATTLESPRITESEQ_ITEMS];
+   WORD             wMaxSpriteDrawSeqIndex;
+   BOOL             fSpriteAddLock;
 
 #ifdef PAL_CLASSIC
    BATTLEPHASE      Phase;
@@ -205,6 +233,74 @@ extern BATTLE g_Battle;
 VOID
 PAL_LoadBattleSprites(
    VOID
+);
+
+VOID
+PAL_BattleDrawBackground(
+   VOID
+);
+
+VOID
+PAL_BattleDrawEnemySprites(
+   WORD              wEnemyIndex,
+   SDL_Surface      *lpDstSurface
+);
+
+VOID
+PAL_BattleDrawPlayerSprites(
+   WORD              wPlayerIndex,
+   SDL_Surface      *lpDstSurface
+);
+
+VOID
+PAL_BattleDrawMagicSprites(
+   INT               iMagicNum,
+   SDL_Surface      *lpDstSurface,
+   PAL_POS           pos
+);
+
+VOID
+PAL_BattleClearSpriteObject(
+   VOID
+);
+
+VOID
+PAL_BattleSpriteAddUnlock(
+   VOID
+);
+
+VOID
+PAL_BattleAddSpriteObject(
+   WORD               wType,
+   WORD               wObjectIndex,
+   PAL_POS            pos,
+   SHORT              sLayerOffset,
+   BOOL               fHaveColorShift
+);
+
+VOID
+PAL_BattleRemoveSpriteObject(
+   WORD               wSpriteObjectIndex
+);
+
+VOID
+PAL_BattleAddFighterSpriteObject(
+   VOID
+);
+
+VOID
+PAL_BattleSortSpriteObjecByPos(
+   VOID
+);
+
+VOID
+PAL_BattleDrawAllSprites(
+   VOID
+);
+
+VOID
+PAL_BattleDrawAllSpritesWithColorShift(
+   BOOL               fColorShift
 );
 
 VOID

@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -351,13 +350,20 @@ typedef enum tagMAGIC_TYPE
    kMagicTypeSummon           = 9,  // summon
 } MAGIC_TYPE;
 
+typedef union ALIGNED_PACKED tagMAGIC_SPECIAL
+{
+   WORD               wSummonEffect;         // summon effect sprite (in F.MKF)
+   SHORT              sLayerOffset;          // limited to non-summon magic.
+                                             // actual layer: PAL_Y(pos) + wYOffset + wMagicLayerOffset
+} MAGIC_SPECIAL, * LPMAGIC_SPECIAL;
+
 typedef struct ALIGNED_PACKED tagMAGIC
 {
    WORD               wEffect;               // effect sprite
    WORD               wType;                 // type of this magic
    WORD               wXOffset;
    WORD               wYOffset;
-   WORD               wSummonEffect;         // summon effect sprite (in F.MKF)
+   MAGIC_SPECIAL      rgSpecific;            // have multiple meanings
    SHORT              wSpeed;                // speed of the effect
    WORD               wKeepEffect;           // FIXME: ???
    WORD               wFireDelay;            // start frame of the magic fire stage
@@ -506,7 +512,6 @@ typedef struct tagGLOBALVARS
    int              iCurPlayingRNG;      // current playing RNG animation
    BYTE             bCurrentSaveSlot;    // current save slot (1-5)
    BOOL             fInMainGame;         // TRUE if in main game
-   BOOL             fGameStart;          // TRUE if the has just started
    BOOL             fEnteringScene;      // TRUE if entering a new scene
    BOOL             fNeedToFadeIn;       // TRUE if need to fade in when drawing scene
    BOOL             fInBattle;           // TRUE if in battle
@@ -583,9 +588,20 @@ PAL_InitGameData(
    INT           iSaveSlot
 );
 
+VOID
+PAL_ReloadInNextTick(
+	INT           iSaveSlot
+);
+
 INT
 PAL_CountItem(
    WORD          wObjectID
+);
+
+BOOL
+PAL_GetItemIndexToInventory(
+   WORD          wObjectID,
+   INT* index
 );
 
 BOOL
@@ -715,7 +731,7 @@ PAL_RemoveMagic(
    WORD           wMagic
 );
 
-VOID
+BOOL
 PAL_SetPlayerStatus(
    WORD         wPlayerRole,
    WORD         wStatusID,

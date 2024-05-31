@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -545,7 +544,7 @@ PAL_AdditionalCredits(
       L" ",
 	  L"    (c) 2009-2011, Wei Mingzhi",
 	  L"        <whistler_wmz@users.sf.net>.",
-      L"    (c) 2011-2020, SDLPAL Team",
+      L"    (c) 2011-2024, SDLPAL Team",
 	  L"%ls",  // Porting information line 1
 	  L"%ls",  // Porting information line 2
 	  L"%ls",  // GNU line 1
@@ -770,11 +769,28 @@ PAL_InterpretInstruction(
          w = gpGlobals->g.PlayerRoles.rgwEquipment[i][wEventObjectID];
          gpGlobals->g.PlayerRoles.rgwEquipment[i][wEventObjectID] = pScript->rgwOperand[1];
 
-         PAL_AddItemToInventory(pScript->rgwOperand[1], -1);
-
-         if (w != 0)
+         if (PAL_GetItemIndexToInventory(pScript->rgwOperand[1], &i)
+            && i < MAX_INVENTORY
+            && gpGlobals->rgInventory[i].nAmount == 1
+            && w != 0
+            && !PAL_GetItemIndexToInventory(w, &j))
          {
-            PAL_AddItemToInventory(w, 1);
+            //
+            // When the number of items you want to wear is 1 
+            // and the number of items you are wearing is also 1, 
+            // replace them directly, instead of removing items 
+            // and adding them at the end of the item menu
+            //
+            gpGlobals->rgInventory[i].wItem = w;
+         }
+         else
+         {
+            PAL_AddItemToInventory(pScript->rgwOperand[1], -1);
+
+            if (w != 0)
+            {
+               PAL_AddItemToInventory(w, 1);
+            }
          }
 
          gpGlobals->wLastUnequippedItem = w;
@@ -1068,6 +1084,7 @@ PAL_InterpretInstruction(
       //
       // Remove equipment from the specified player
       //
+      iPlayerRole = pScript->rgwOperand[0];
       if (pScript->rgwOperand[1] == 0)
       {
          //
@@ -1330,7 +1347,10 @@ PAL_InterpretInstruction(
       //
       // Set the status for player
       //
-      PAL_SetPlayerStatus(wEventObjectID, pScript->rgwOperand[0], pScript->rgwOperand[1]);
+      if (!PAL_SetPlayerStatus(wEventObjectID, pScript->rgwOperand[0], pScript->rgwOperand[1]))
+      {
+         g_fScriptSuccess = FALSE;
+      }
       break;
 
    case 0x002E:
@@ -1721,7 +1741,7 @@ PAL_InterpretInstruction(
       // Load the last saved game
       //
       PAL_FadeOut(1);
-      PAL_InitGameData(gpGlobals->bCurrentSaveSlot);
+      PAL_ReloadInNextTick(gpGlobals->bCurrentSaveSlot);
       return 0; // don't go further
 
    case 0x004F:
@@ -1917,7 +1937,7 @@ PAL_InterpretInstruction(
       //
       // Jump if player is not poisoned
       //
-      if (!PAL_IsPlayerPoisonedByLevel(wEventObjectID, 1))
+      if (!PAL_IsPlayerPoisonedByLevel(wEventObjectID, 0))
       {
          wScriptEntry = pScript->rgwOperand[0] - 1;
       }
@@ -2375,7 +2395,7 @@ PAL_InterpretInstruction(
          x -= PAL_X(gpGlobals->viewport) + PAL_X(gpGlobals->partyoffset);
          y -= PAL_Y(gpGlobals->viewport) + PAL_Y(gpGlobals->partyoffset);
 
-         if (abs(x) + abs(y * 2) < pScript->rgwOperand[1] * 32 + 16)
+         if (abs(x) + abs(y * 2) < pScript->rgwOperand[1] * 32 + 16 && gpGlobals->g.lprgEventObject[pScript->rgwOperand[0] - 1].sState > 0)
          {
             if (pScript->rgwOperand[1] > 0)
             {
@@ -3268,7 +3288,7 @@ PAL_RunTriggerScript(
          }
          else
          {
-            wScriptEntry++;
+             wScriptEntry++;
          }
          break;
 
@@ -3468,6 +3488,10 @@ begin:
    pScript = &(gpGlobals->g.lprgScriptEntry[wScriptEntry]);
    pEvtObj = &(gpGlobals->g.lprgEventObject[wEventObjectID - 1]);
 
+   UTIL_LogOutput(LOGLEVEL_DEBUG, "[AUTOSCRIPT] %04x %.4x: %.4x %.4x %.4x %.4x\n", wEventObjectID, wScriptEntry,
+       pScript->wOperation, pScript->rgwOperand[0],
+       pScript->rgwOperand[1], pScript->rgwOperand[2]);
+
    //
    // For autoscript, we should interpret one instruction per frame (except
    // jumping) and save the address of next instruction.
@@ -3564,7 +3588,7 @@ begin:
    case 0xFFFF:
 	   if (gConfig.fIsWIN95)
 	   {
-		   int XBase = (wEventObjectID & PAL_ITEM_DESC_BOTTOM) ? 71 : 102;
+		   int XBase = (wEventObjectID & PAL_ITEM_DESC_BOTTOM) ? 71 : gConfig.ScreenLayout.MagicDescMsgPos;
 		   int YBase = (wEventObjectID & PAL_ITEM_DESC_BOTTOM) ? 151 - gConfig.ScreenLayout.ExtraItemDescLines * 16 : 3;
 		   int iDescLine = (wEventObjectID & ~PAL_ITEM_DESC_BOTTOM);
 

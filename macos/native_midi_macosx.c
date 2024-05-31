@@ -264,6 +264,21 @@ void native_midi_start(NativeMidiSong *song, int looping)
 
     GetSequenceAudioUnit(song->sequence, &song->audiounit);
 
+    Uint32 tracks;
+    if (MusicSequenceGetTrackCount(song->sequence, &tracks) == noErr)
+        for (UInt32 i = 0; i < tracks; i++) {
+            MusicTrack track = NULL;
+            MusicTimeStamp trackLen = 0;
+
+            UInt32 trackLenLen = sizeof(trackLen);
+
+            MusicSequenceGetIndTrack(song->sequence, i, &track);
+
+            MusicTrackGetProperty(track, kSequenceTrackProperty_TrackLength, &trackLen, &trackLenLen);
+            MusicTrackLoopInfo loopInfo = { trackLen, looping ? 0 : 1 };
+            MusicTrackSetProperty(track, kSequenceTrackProperty_LoopInfo, &loopInfo, sizeof(loopInfo));
+        }
+
     vol = latched_volume;
     latched_volume++;  /* just make this not match. */
     native_midi_setvolume(song,vol);
@@ -272,7 +287,7 @@ void native_midi_start(NativeMidiSong *song, int looping)
     SDL_PauseAudio(0);
 }
 
-void native_midi_stop()
+void native_midi_stop(NativeMidiSong *song)
 {
     if (currentsong) {
         SDL_PauseAudio(1);
@@ -284,7 +299,7 @@ void native_midi_stop()
     }
 }
 
-int native_midi_active()
+int native_midi_active(NativeMidiSong *songÏ)
 {
     MusicTimeStamp currentTime = 0;
     if (currentsong == NULL)

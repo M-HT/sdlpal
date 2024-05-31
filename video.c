@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -275,7 +274,7 @@ VIDEO_Startup(
    //
    if (gpWindow == NULL)
    gpWindow = SDL_CreateWindow("Pal", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                               gConfig.dwScreenWidth, gConfig.dwScreenHeight, PAL_VIDEO_INIT_FLAGS | (gConfig.fFullScreen ? SDL_WINDOW_BORDERLESS : 0));
+                               gConfig.dwScreenWidth, gConfig.dwScreenHeight, PAL_VIDEO_INIT_FLAGS);
 
    if (gpWindow == NULL)
    {
@@ -339,12 +338,14 @@ VIDEO_Startup(
    //
    if (gConfig.fUseTouchOverlay)
    {
-      extern const void * PAL_LoadOverlayBMP(void);
-      extern int PAL_OverlayBMPLength();
+      extern const unsigned char bmpData[];
+      extern unsigned int bmpLen;
 
-      const void *bmp = PAL_LoadOverlayBMP();
-      SDL_Surface *overlay = SDL_LoadBMP_RW(SDL_RWFromConstMem(bmp, PAL_OverlayBMPLength()), 1);
-      free((void*)bmp);
+      void *bmp = UTIL_malloc(bmpLen);
+      YJ1_Decompress(bmpData, bmp, bmpLen);
+      SDL_Surface *overlay = SDL_LoadBMP_RW(SDL_RWFromConstMem(bmp, bmpLen), 1);
+      free(bmp);
+
       if (overlay != NULL)
       {
          SDL_SetColorKey(overlay, SDL_RLEACCEL, SDL_MapRGB(overlay->format, 255, 0, 255));
@@ -356,19 +357,19 @@ VIDEO_Startup(
       }
    }
 # if PAL_HAS_GLSL
-   // notice: power of 2
+	// notice: power of 2
 #  define PIXELS 1
-   // We need a total empty texture in case of not using touch overlay.
-   // Or GL runtime will pick the previous texture - the main screen itself
-   // and reuse it - that makes color seems overexposed
-   else if( gConfig.fEnableGLSL )
-   {
-	   BYTE pixels[4*PIXELS*PIXELS];
-	   memset(pixels, 0, sizeof(pixels));
-	   SDL_Surface *temp = SDL_CreateRGBSurfaceFrom(pixels, PIXELS, PIXELS, 32, PIXELS, 0, 0, 0, 0);
-	   gpTouchOverlay = SDL_CreateTextureFromSurface(gpRenderer, temp);
-	   SDL_FreeSurface(temp);
-   }
+	// We need a total empty texture in case of not using touch overlay.
+	// Or GL runtime will pick the previous texture - the main screen itself
+	// and reuse it - that makes color seems overexposed
+	else if( gConfig.fEnableGLSL )
+	{
+		BYTE pixels[4*PIXELS*PIXELS];
+		memset(pixels, 0, sizeof(pixels));
+		SDL_Surface *temp = SDL_CreateRGBSurfaceFrom(pixels, PIXELS, PIXELS, 32, 4*PIXELS, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+		gpTouchOverlay = SDL_CreateTextureFromSurface(gpRenderer, temp);
+		SDL_FreeSurface(temp);
+	}
 # endif
 #else
 
@@ -1081,7 +1082,7 @@ VIDEO_SaveScreenshot(
 
 --*/
 {
-	char filename[32];
+	char filename[80];
 #ifdef _WIN32
 	SYSTEMTIME st;
 	GetLocalTime(&st);

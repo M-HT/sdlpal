@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -52,9 +51,18 @@
 # include <ctype.h>
 # include <sys/time.h>
 
-#define strcasestr(a,b) strstr(toupper((a)),toupper((b)))
+#ifdef __cplusplus
+extern "C" {
+#endif
+char *_stringtolower(char *);
+#ifdef __cplusplus
+}
+#endif
+#define strcasestr(a,b) strstr(_stringtolower((a)),_stringtolower((b)))
 
 #define PAL_HAS_GLSL 1
 #define PAL_HAS_OPUS 0
+
+#define PAL_HAS_PLATFORM_STARTUP 1
 
 #endif

@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -116,7 +115,7 @@ PAL_DetectCodePage(
 {
 	FILE *fp;
 	char *word_buf = NULL;
-	long word_len = 0;
+	size_t word_len;
 	CODEPAGE cp = CP_BIG5;
 
 	if (NULL != (fp = UTIL_OpenFile(filename)))
@@ -441,6 +440,7 @@ PAL_LoadDefaultGame(
    gpGlobals->wMaxPartyMemberIndex = 0;
    gpGlobals->viewport = PAL_XY(0, 0);
    gpGlobals->wLayer = 0;
+   gpGlobals->nFollower = 0;
    gpGlobals->wChaseRange = 1;
 #ifndef PAL_CLASSIC
    gpGlobals->bBattleSpeed = 2;
@@ -740,7 +740,7 @@ PAL_SaveGame_Common(
 )
 {
 	FILE *fp;
-	int   i;
+	size_t i;
 
 	s->wSavedTimes = wSavedTimes;
 	s->wViewportX = PAL_X(gpGlobals->viewport);
@@ -889,6 +889,32 @@ PAL_SaveGame(
 }
 
 VOID
+PAL_ReloadInNextTick(
+    INT           iSaveSlot
+)
+/*++
+  Purpose:
+
+    Reload the game IN NEXT TICK, avoid reentrant problems.
+
+  Parameters:
+
+    [IN]  iSaveSlot - Slot of saved game.
+
+  Return value:
+
+    None.
+
+--*/
+{
+    gpGlobals->bCurrentSaveSlot = (BYTE)iSaveSlot;
+    PAL_SetLoadFlags(kLoadGlobalData | kLoadScene | kLoadPlayerSprite);
+    gpGlobals->fEnteringScene = TRUE;
+    gpGlobals->fNeedToFadeIn = TRUE;
+    gpGlobals->dwFrameNum = 0;
+}
+
+VOID
 PAL_InitGameData(
    INT         iSaveSlot
 )
@@ -922,8 +948,6 @@ PAL_InitGameData(
       PAL_LoadDefaultGame();
    }
 
-   gpGlobals->fGameStart = TRUE;
-   gpGlobals->fNeedToFadeIn = FALSE;
    gpGlobals->iCurInvMenuItem = 0;
    gpGlobals->fInBattle = FALSE;
 
@@ -996,6 +1020,49 @@ PAL_CountItem(
 }
 
 BOOL
+PAL_GetItemIndexToInventory(
+   WORD          wObjectID,
+   INT          *index
+)
+/*++
+  Purpose:
+
+    Search for the specified item in the inventory.
+
+  Parameters:
+
+    [IN]  wObjectID - object number of the item.
+
+    [IN]  index - use a pointer to receive the retrieved inventory index.
+
+  Return value:
+
+    TRUE if found it, FALSE if not found it.
+
+--*/
+{
+   BOOL         fFound = FALSE;
+
+   *index = 0;
+
+   while (*index < MAX_INVENTORY)
+   {
+      if (gpGlobals->rgInventory[*index].wItem == wObjectID)
+      {
+         fFound = TRUE;
+         break;
+      }
+      else if (gpGlobals->rgInventory[*index].wItem == 0)
+      {
+         break;
+      }
+      (*index)++;
+   }
+
+   return fFound;
+}
+
+BOOL
 PAL_AddItemToInventory(
    WORD          wObjectID,
    INT           iNum
@@ -1036,19 +1103,7 @@ PAL_AddItemToInventory(
    //
    // Search for the specified item in the inventory
    //
-   while (index < MAX_INVENTORY)
-   {
-      if (gpGlobals->rgInventory[index].wItem == wObjectID)
-      {
-         fFound = TRUE;
-         break;
-      }
-      else if (gpGlobals->rgInventory[index].wItem == 0)
-      {
-         break;
-      }
-      index++;
-   }
+   fFound = PAL_GetItemIndexToInventory(wObjectID, &index);
 
    if (iNum > 0)
    {
@@ -2105,7 +2160,7 @@ PAL_RemoveMagic(
    }
 }
 
-VOID
+BOOL
 PAL_SetPlayerStatus(
    WORD         wPlayerRole,
    WORD         wStatusID,
@@ -2130,6 +2185,8 @@ PAL_SetPlayerStatus(
 
 --*/
 {
+   BOOL           fSuccess = TRUE;
+
 #ifndef PAL_CLASSIC
    if (wStatusID == kStatusSlow &&
       gpGlobals->rgPlayerStatus[wPlayerRole][kStatusHaste] > 0)
@@ -2175,10 +2232,16 @@ PAL_SetPlayerStatus(
       //
       // only allow dead players for "puppet" status
       //
-      if (gpGlobals->g.PlayerRoles.rgwHP[wPlayerRole] == 0 &&
-         gpGlobals->rgPlayerStatus[wPlayerRole][wStatusID] < wNumRound)
+      if (gpGlobals->g.PlayerRoles.rgwHP[wPlayerRole] == 0)
       {
-         gpGlobals->rgPlayerStatus[wPlayerRole][wStatusID] = wNumRound;
+         if (gpGlobals->rgPlayerStatus[wPlayerRole][wStatusID] < wNumRound)
+         {
+            gpGlobals->rgPlayerStatus[wPlayerRole][wStatusID] = wNumRound;
+         }
+      }
+      else
+      {
+         fSuccess = FALSE;
       }
       break;
 
@@ -2200,6 +2263,8 @@ PAL_SetPlayerStatus(
       assert(FALSE);
       break;
    }
+
+   return fSuccess;
 }
 
 VOID

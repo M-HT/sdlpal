@@ -1,15 +1,14 @@
 /* -*- mode: c; tab-width: 4; c-basic-offset: 4; c-file-style: "linux" -*- */
 //
 // Copyright (c) 2009-2011, Wei Mingzhi <whistler_wmz@users.sf.net>.
-// Copyright (c) 2011-2020, SDLPAL development team.
+// Copyright (c) 2011-2024, SDLPAL development team.
 // All rights reserved.
 //
 // This file is part of SDLPAL.
 //
 // SDLPAL is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// it under the terms of the GNU General Public License, version 3
+// as published by the Free Software Foundation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -62,11 +61,9 @@ PAL_GameUpdate(
          gpGlobals->fEnteringScene = FALSE;
 
          i = gpGlobals->wNumScene - 1;
-         wResult = PAL_RunTriggerScript(gpGlobals->g.rgScene[i].wScriptOnEnter, 0xFFFF);
-         if (!gpGlobals->fGameStart)
-            gpGlobals->g.rgScene[i].wScriptOnEnter = wResult;
+         gpGlobals->g.rgScene[i].wScriptOnEnter = PAL_RunTriggerScript(gpGlobals->g.rgScene[i].wScriptOnEnter, 0xFFFF);
 
-         if (gpGlobals->fEnteringScene || gpGlobals->fGameStart)
+         if (gpGlobals->fEnteringScene)
          {
             //
             // Don't go further as we're switching to another scene
@@ -166,7 +163,7 @@ PAL_GameUpdate(
 
                PAL_ClearKeyState();
 
-               if (gpGlobals->fEnteringScene || gpGlobals->fGameStart)
+               if (gpGlobals->fEnteringScene)
                {
                   //
                   // Don't go further on scene switching
@@ -193,7 +190,7 @@ PAL_GameUpdate(
          if (wScriptEntry != 0)
          {
             p->wAutoScript = PAL_RunAutoScript(wScriptEntry, wEventObjectID);
-            if (gpGlobals->fEnteringScene || gpGlobals->fGameStart)
+            if (gpGlobals->fEnteringScene)
             {
                //
                // Don't go further on scene switching
@@ -227,7 +224,7 @@ PAL_GameUpdate(
 
             pos = PAL_XY(x, y);
 
-            if (!PAL_CheckObstacle(pos, TRUE, 0))
+            if (!PAL_CheckObstacleWithRange(pos, TRUE, 0, TRUE))
             {
                //
                // move here
@@ -242,6 +239,11 @@ PAL_GameUpdate(
             wDir = (wDir + 1) % 4;
          }
       }
+   }
+
+   if (--gpGlobals->wChasespeedChangeCycles == 0)
+   {
+      gpGlobals->wChaseRange = 1;
    }
 
    gpGlobals->dwFrameNum++;
@@ -576,15 +578,70 @@ PAL_StartFrame(
       //
       PAL_QuitGame();
    }
+}
 
-   if (--gpGlobals->wChasespeedChangeCycles == 0)
+static inline VOID
+PAL_WaitForKeyInternal(
+   WORD      wTimeOut,
+   BOOL      fAllowAnyKey
+)
+/*++
+  Purpose:
+
+    Wait for any key.
+
+  Parameters:
+
+    [IN]  wTimeOut - the maximum time of the waiting. 0 = wait forever.
+
+    [IN]  fAllowAnyKey - Whether any key are allowed. If no, only KeySearch and KeyMenu allowed.
+
+  Return value:
+
+    None.
+
+--*/
+{
+   DWORD     dwTimeOut = SDL_GetTicks() + wTimeOut;
+
+   PAL_ClearKeyState();
+
+   while (wTimeOut == 0 || !SDL_TICKS_PASSED(SDL_GetTicks(), dwTimeOut))
    {
-      gpGlobals->wChaseRange = 1;
+      UTIL_Delay(5);
+
+      if (g_InputState.dwKeyPress && fAllowAnyKey
+         || g_InputState.dwKeyPress & (kKeySearch | kKeyMenu))
+      {
+         break;
+      }
    }
 }
 
 VOID
 PAL_WaitForKey(
+   WORD      wTimeOut
+)
+/*++
+  Purpose:
+
+    Wait for KeySearch and KeyMenu.
+
+  Parameters:
+
+    [IN]  wTimeOut - the maximum time of the waiting. 0 = wait forever.
+
+  Return value:
+
+    None.
+
+--*/
+{
+   PAL_WaitForKeyInternal(wTimeOut, FALSE);
+}
+
+VOID
+PAL_WaitForAnyKey(
    WORD      wTimeOut
 )
 /*++
@@ -602,17 +659,5 @@ PAL_WaitForKey(
 
 --*/
 {
-   DWORD     dwTimeOut = SDL_GetTicks() + wTimeOut;
-
-   PAL_ClearKeyState();
-
-   while (wTimeOut == 0 || !SDL_TICKS_PASSED(SDL_GetTicks(), dwTimeOut))
-   {
-      UTIL_Delay(5);
-
-      if (g_InputState.dwKeyPress & (kKeySearch | kKeyMenu))
-      {
-         break;
-      }
-   }
+   PAL_WaitForKeyInternal(wTimeOut, TRUE);
 }
