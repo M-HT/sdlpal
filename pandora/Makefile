@@ -10,7 +10,7 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $*$(INTER).Td
 
 GTEST_DIR = ../3rd/googletest/googletest
 
-SOURCES = .. ../adplug
+SOURCES = .. ../adplug ../timidity
 CFILES = $(foreach dir, $(SOURCES), $(wildcard $(dir)/*.c)) ../libmad/music_mad.c pal_utils.c $(wildcard ../native_midi/*.c) ../unix/native_midi_alsa.c
 CPPFILES = $(foreach dir, $(SOURCES), $(wildcard $(dir)/*.cpp))
 OBJFILES = $(CFILES:.c=$(INTER).o) $(CPPFILES:.cpp=$(INTER).o)
@@ -27,7 +27,7 @@ OPUS_LDFLAGS = ../../opus/lib/arm/libopusfile.a ../../opus/lib/arm/libopus.a  ..
 
 CC = $(HOST)gcc
 CXX = $(HOST)g++
-CCFLAGS = `$(SDL_CONFIG) --cflags` -D_GNU_SOURCE -pipe -march=armv7-a -mcpu=cortex-a8 -mtune=cortex-a8 -mfpu=neon -mfloat-abi=softfp -g -Wall -O2 -fno-strict-aliasing -I. -I../ -I$(PNDSDK)/usr/include $(WILDMIDI_CFLAGS) $(OPUS_CFLAGS) -DPANDORA -DPAL_HAS_PLATFORM_SPECIFIC_UTILS $(TEST_CCFLAGS)
+CCFLAGS = `$(SDL_CONFIG) --cflags` -D_GNU_SOURCE -pipe -march=armv7-a -mcpu=cortex-a8 -mtune=cortex-a8 -mfpu=neon -mfloat-abi=softfp -g -Wall -O2 -fno-strict-aliasing -I. -I../ -I$(PNDSDK)/usr/include -I../timidity $(WILDMIDI_CFLAGS) $(OPUS_CFLAGS) -DPANDORA -DPAL_HAS_PLATFORM_SPECIFIC_UTILS $(TEST_CCFLAGS)
 CXXFLAGS = $(CCFLAGS) -std=c++11
 CFLAGS = $(CCFLAGS) -std=gnu99
 LDFLAGS = -s `$(SDL_CONFIG) --libs` -lts $(WILDMIDI_LDFLAGS) $(OPUS_LDFLAGS) -lasound -lmad -lvorbisidec -logg -lstdc++ -lm
