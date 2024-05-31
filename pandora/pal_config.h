@@ -22,6 +22,7 @@
 
 # define PAL_HAS_CONFIG_PAGE  1
 # define PAL_HAS_NATIVEMIDI 1
+# define PAL_HAS_WILDMIDI  1
 
 # define PAL_HAS_PLATFORM_STARTUP 1
 

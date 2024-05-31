@@ -222,7 +222,7 @@ typedef const WCHAR        *LPCWSTR;
 # define PAL_HAS_OPUS         1   /* Try always enable OPUS. If compilation/run failed, please change this value to 0. */
 #endif
 #ifndef PAL_HAS_WILDMIDI
-# define PAL_HAS_WILDMIDI     1   /* Try always enable WILDMIDI. If compilation/run failed, please change this value to 0. */
+# define PAL_HAS_WILDMIDI     0
 #endif
 
 #ifndef PAL_CONFIG_PREFIX
