@@ -4,7 +4,7 @@
 #include "audio.h"
 #include "players.h"
 
-#if PAL_HAS_SOFTMIDI
+#if PAL_HAS_WILDMIDI
 #if !(defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__))
 #include <sys/stat.h>
 #endif
@@ -174,13 +174,15 @@ MID_Play(
 }
 
 LPAUDIOPLAYER
-SOFTMIDI_Init(
+WILDMIDI_Init(
 	VOID
 )
 {
 	char const *timidity_cfg;
 
-	timidity_cfg = check_file(getenv("TIMIDITY_CFG"));
+	timidity_cfg = check_file(gConfig.pszSoundBank);
+
+	if (timidity_cfg == NULL) timidity_cfg = check_file(getenv("TIMIDITY_CFG"));
 
 	if (timidity_cfg == NULL) timidity_cfg = check_file("wildmidi.cfg");
 	if (timidity_cfg == NULL) timidity_cfg = check_file("timidity.cfg");
@@ -197,6 +199,8 @@ SOFTMIDI_Init(
 	if (timidity_cfg == NULL) timidity_cfg = check_file("/etc/timidity.cfg");
 	if (timidity_cfg == NULL) timidity_cfg = check_file("/usr/share/timidity/timidity.cfg");
 	if (timidity_cfg == NULL) timidity_cfg = check_file("/usr/local/lib/timidity/timidity.cfg");
+
+	if (timidity_cfg == NULL) timidity_cfg = check_file("/etc/timidity/freepats.cfg");
 #endif
 
 	if (timidity_cfg == NULL) return NULL;
@@ -227,7 +231,7 @@ SOFTMIDI_Init(
 #else
 
 LPAUDIOPLAYER
-SOFTMIDI_Init(
+WILDMIDI_Init(
 	VOID
 )
 {

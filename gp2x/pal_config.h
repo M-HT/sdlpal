@@ -22,7 +22,7 @@
 # define PAL_CREDIT           "M-HT"
 # define PAL_PORTYEAR         "2020"
 
-# define PAL_HAS_SOFTMIDI  0
+# define PAL_HAS_WILDMIDI  0
 
 # define PAL_HAS_PLATFORM_STARTUP 1
 

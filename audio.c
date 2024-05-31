@@ -391,14 +391,13 @@ AUDIO_OpenDevice(
    case MUSIC_OPUS:
 	   gAudioDevice.pMusPlayer = OPUS_Init();
 	   break;
-   case MUSIC_SOFTMIDI:
-	   gAudioDevice.pMusPlayer = SOFTMIDI_Init();
-	   break;
    case MUSIC_MIDI:
 	   if (gConfig.eMIDISynth == SYNTH_TIMIDITY)
 		   gAudioDevice.pMusPlayer = TIMIDITY_Init();
 	   else if (gConfig.eMIDISynth == SYNTH_TINYSOUNDFONT)
 		   gAudioDevice.pMusPlayer = TSF_Init();
+	   else if (gConfig.eMIDISynth == SYNTH_WILDMIDI)
+		   gAudioDevice.pMusPlayer = WILDMIDI_Init();
 	   break;
    default:
 	   break;

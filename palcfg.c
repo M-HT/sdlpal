@@ -86,8 +86,8 @@ static const ConfigItem gConfigItems[PALCFG_ALL_MAX] = {
 	{ PALCFG_SHADER,            PALCFG_STRING,   "Shader",             6, MAKE_STRING(NULL) },
 };
 
-static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "OPUS", "RAW", "SOFTMIDI" };
-static const char* synth_types[] = { "native", "timidity", "tinysoundfont" };
+static const char *music_types[] = { "MIDI", "RIX", "MP3", "OGG", "OPUS", "RAW" };
+static const char* synth_types[] = { "native", "timidity", "tinysoundfont", "wildmidi" };
 static const char *cd_types[] = { "NONE", "MP3", "OGG", "OPUS", "RAW" };
 static const char *opl_cores[] = { "MAME", "DBFLT", "DBINT", "NUKED" };
 static const char *opl_chips[] = { "OPL2", "OPL3" };
@@ -449,8 +449,6 @@ PAL_LoadConfig(
 				{
 					if (SDL_strncasecmp(value.sValue, "MIDI", slen) == 0)
 						eMusicType = MUSIC_MIDI;
-					else if (PAL_HAS_SOFTMIDI && SDL_strncasecmp(value.sValue, "SOFTMIDI", slen) == 0)
-						eMusicType = MUSIC_SOFTMIDI;
 					else if (PAL_HAS_MP3 && SDL_strncasecmp(value.sValue, "MP3", slen) == 0)
 						eMusicType = MUSIC_MP3;
 					else if (PAL_HAS_OGG && SDL_strncasecmp(value.sValue, "OGG", slen) == 0)
@@ -469,6 +467,8 @@ PAL_LoadConfig(
 						eMIDISynthType = SYNTH_TIMIDITY;
 					else if (SDL_strncasecmp(value.sValue, "tinysoundfont", slen) == 0)
 						eMIDISynthType = SYNTH_TINYSOUNDFONT;
+					else if (PAL_HAS_WILDMIDI && SDL_strncasecmp(value.sValue, "wildmidi", slen) == 0)
+						eMIDISynthType = SYNTH_WILDMIDI;
 					break;
 				}
 				case PALCFG_OPL_CORE:
@@ -617,7 +617,7 @@ PAL_LoadConfig(
         gConfig.fEnableGLSL = FALSE;
     }
 
-	if (gConfig.eMIDISynth != SYNTH_NATIVE && !UTIL_IsFileExist(gConfig.pszSoundBank)) {
+	if (gConfig.eMIDISynth != SYNTH_NATIVE && gConfig.eMIDISynth != SYNTH_WILDMIDI && !UTIL_IsFileExist(gConfig.pszSoundBank)) {
 		UTIL_LogOutput(LOGLEVEL_ERROR, "SoftSynth enabled but no valid soundbank file specified. Fallback to native-midi");
 		gConfig.eMIDISynth = SYNTH_NATIVE;
 	}

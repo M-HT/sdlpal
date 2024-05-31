@@ -57,6 +57,7 @@ labelnames = [
         "samplerate",   "stereo",       "oplrate",          "surround",     "musvol",
         "sndvol",       "buffer",       "quality",          "exit",         "launch",
         "default",      "levels",
+        "midisynth",    "soundbank",
         "opl"
     ]
 labels = [[
@@ -68,6 +69,7 @@ labels = [[
         "Sample rate:",        "Ste_reo",            "OPL rate:",       "S_urround OPL", "Music volume:",
         "Sound volume:",       "Buffer:",            "Quality:",        "E_xit",         "_Launch game",
         "_Default",            "Verbose|Debug|Informational|Warning|Error|Fatal",
+        "MIDI synth:",         "SoundBank:",
         "OPL type:"
     ], [
         "SDLPAL 启动器",       "字体及语言设置",     "显示设置",        "音频设置",      "日志记录设置",
@@ -78,6 +80,7 @@ labels = [[
         "采样率：",            "立体声(_R)",         "OPL 采样率：",    "环绕声 OPL(_U)","音乐音量：",
         "音效音量：",          "缓冲区：",           "质量：",          "退出(_X)",      "启动游戏(_L)",
         "默认设置(_D)",        "详细信息|调试信息|运行信息|普通警告|严重错误|致命错误",
+        "MIDI 合成器：",       "音色库：",
         "OPL 类型："
     ], [
         "SDLPAL 啟動器",       "字體及語言設定",     "顯示設定",        "音訊設定",      "日誌記錄設定",
@@ -88,6 +91,7 @@ labels = [[
         "取樣速率：",          "立體聲(_R)",         "OPL 取樣速率：",  "環繞聲 OPL(_U)","音樂音量：",
         "音效音量：",          "緩衝區：",           "品質：",          "退出(_X)",      "啟動遊戲(_L)",
         "默認設定(_D)",        "詳細信息|調試信息|運行信息|普通警告|嚴重錯誤|致命錯誤",
+        "MIDI 合成器：",       "音色庫：",
         "OPL 類型："
     ]]
 
@@ -240,12 +244,14 @@ class ConfigFile:
             self.AddEntry("TextureWidth", "0-4294967295", ("320" if platform == "pandora" else "640")) # git
 
         self.AddEntry("CD", ("MP3/OGG" if version == "v2017" else "NONE/MP3/OGG/OPUS"), ("OGG" if version == "v2017" else "NONE")) # v2017/git
-        self.AddEntry("Music", ("MIDI/SOFTMIDI/RIX/MP3/OGG" if version == "v2017" else "MIDI/SOFTMIDI/RIX/MP3/OGG/OPUS"), "RIX") # v2017/git
+        self.AddEntry("Music", ("MIDI/SOFTMIDI/RIX/MP3/OGG" if version == "v2017" else "MIDI/RIX/MP3/OGG/OPUS"), "RIX") # v2017/git
         if version == "v2017":
             self.AddEntry("OPL", "DOSBOX/MAME/DOSBOXNEW", "DOSBOX") # v2017
         else:
             self.AddEntry("OPLCore", "MAME/DBFLT/DBINT/NUKED", "DBFLT") # git
             self.AddEntry("OPLChip", "OPL2/OPL3", "OPL2") # git
+            self.AddEntry("MIDISynth", "native/wildmidi/timidity/tinysoundfont", "native") # git
+            self.AddEntry("SoundBank", "*", "") # git
 
         self.AddEntry("GamePath", "*", "")
         self.AddEntry("SavePath", "*", "")
@@ -411,7 +417,7 @@ class ConfigGUI:
         hbox.pack_start(frame, True, True, 5)
         frame.show()
 
-        table = self.CreateTable(2, 2, False)
+        table = self.CreateTable(4, 2, False)
         frame.add(table)
         table.show()
 
@@ -426,11 +432,17 @@ class ConfigGUI:
 
         # Font file
         label = self.CreateLabel(self.labels.fontfile, 1, 0.5)
-        table.attach(label, 0, 1, 1, 2, GTK_ATTACH_FILL, 0, 5, 2)
+        if platform == "pandora" and version != "v2017":
+            table.attach(label, 2, 3, 0, 1, GTK_ATTACH_FILL, 0, 5, 2)
+        else:
+            table.attach(label, 0, 1, 1, 2, GTK_ATTACH_FILL, 0, 5, 2)
         label.show()
 
         entry = self.CreateEntry("FontFileName")
-        table.attach(entry, 1, 2, 1, 2, GTK_ATTACH_EXPAND | GTK_ATTACH_FILL, 0, 5, 2)
+        if platform == "pandora" and version != "v2017":
+            table.attach(entry, 3, 4, 0, 1, GTK_ATTACH_EXPAND | GTK_ATTACH_FILL, 0, 5, 2)
+        else:
+            table.attach(entry, 1, 2, 1, 2, GTK_ATTACH_EXPAND | GTK_ATTACH_FILL, 0, 5, 2)
         entry.show()
 
 
@@ -583,7 +595,7 @@ class ConfigGUI:
         frame.add(vbox)
         vbox.show()
 
-        table = self.CreateTable(9, 2, False)
+        table = self.CreateTable(9, 3, False)
         vbox.pack_start(table, False, False, 0)
         table.show()
 
@@ -676,6 +688,25 @@ class ConfigGUI:
         entry = self.CreateEntry("AudioBufferSize")
         table.attach(entry, 8, 9, 1, 2, GTK_ATTACH_EXPAND | GTK_ATTACH_FILL, 0, 5, 2)
         entry.show()
+
+        if version != "v2017":
+            # MIDI synth
+            label = self.CreateLabel(self.labels.midisynth, 1, 0.5)
+            table.attach(label, 2, 3, 2, 3, GTK_ATTACH_FILL, 0, 5, 2)
+            label.show()
+
+            combobox = self.CreateComboBox("MIDISynth")
+            table.attach(combobox, 3, 4, 2, 3, GTK_ATTACH_EXPAND | GTK_ATTACH_FILL, 0, 5, 2)
+            combobox.show()
+
+            # SoundBank
+            label = self.CreateLabel(self.labels.soundbank, 1, 0.5)
+            table.attach(label, 4, 5, 2, 3, GTK_ATTACH_FILL, 0, 5, 2)
+            label.show()
+
+            entry = self.CreateEntry("SoundBank")
+            table.attach(entry, 5, 9, 2, 3, GTK_ATTACH_EXPAND | GTK_ATTACH_FILL, 0, 5, 2)
+            entry.show()
 
         # Quality
         table = self.CreateTable(6, 2, False)
