@@ -8,7 +8,7 @@
 #  define RESAMPLER_SSE
 # endif
 #endif
-#if defined(PANDORA)
+#if defined(PANDORA) || defined(PYRA)
 # include <arm_neon.h>
 # define RESAMPLER_NEON_32
 #endif

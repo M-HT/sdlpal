@@ -37,6 +37,7 @@ SDL_Texture       *gpTexture          = NULL;
 SDL_Texture       *gpTouchOverlay     = NULL;
 SDL_Rect           gOverlayRect;
 SDL_Rect           gTextureRect;
+SDL_Rect           gTextureZoomRect;
 
 static struct RenderBackend {
     void (*Init)();
@@ -66,7 +67,7 @@ static WORD               g_wShakeLevel      = 0;
 #include "video_glsl.h"
 #endif
 
-#ifdef PANDORA
+#if defined(PANDORA) || defined(PYRA)
 VOID VIDEO_Platform_Blit_15_32(SDL_Surface *pSrc, SDL_Surface *pDst);
 #elif defined(GP2X)
 VOID VIDEO_Platform_AfterSetVideoMode(VOID);
@@ -126,6 +127,8 @@ static SDL_Texture *VIDEO_CreateTexture(int width, int height)
 
 		VIDEO_SetupTouchArea(width,height,width,height);
 	}
+
+	gTextureZoomRect.w = 0;
 
 	//
 	// Create texture for screen.
@@ -287,7 +290,11 @@ VIDEO_Startup(
 	}
 # endif
 
+#if defined(PYRA) && !PAL_HAS_GLSL
+   gpRenderer = SDL_CreateRenderer(gpWindow, -1, SDL_RENDERER_SOFTWARE);
+#else
    gpRenderer = SDL_CreateRenderer(gpWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+#endif
 
    gRenderBackend.Setup();
 
@@ -442,12 +449,12 @@ VIDEO_Startup(
       return -2;
    }
 
+#endif
+
    if (gConfig.fFullScreen)
    {
       SDL_ShowCursor(FALSE);
    }
-
-#endif
 
 #if APPIMAGE
 	if(surf)
@@ -559,14 +566,14 @@ VIDEO_RenderCopy(
 	for (int y = 0; y < gTextureRect.h; y++, src += gpScreenReal->pitch)
 	{
 		memset(pixels, 0, left_pitch); pixels += left_pitch;
-		memcpy(pixels, src, 320 << 2); pixels += 320 << 2;
+		memcpy(pixels, src, gTextureRect.w << 2); pixels += gTextureRect.w << 2;
 		memset(pixels, 0, right_pitch); pixels += right_pitch;
 	}
 	memset(pixels, 0, gTextureRect.y * texture_pitch);
 	SDL_UnlockTexture(gpTexture);
 
 	SDL_RenderClear(gpRenderer);
-	SDL_RenderCopy(gpRenderer, gpTexture, NULL, NULL);
+	SDL_RenderCopy(gpRenderer, gpTexture, gTextureZoomRect.w ? &gTextureZoomRect : NULL, NULL);
 	if (gConfig.fUseTouchOverlay)
 	{
 		SDL_RenderCopy(gpRenderer, gpTouchOverlay, NULL, &gOverlayRect);
@@ -1543,8 +1550,40 @@ VIDEO_DrawSurfaceToScreen(
    {
       return;
    }
-   SDL_BlitScaled(pSurface, NULL, gpScreenReal, NULL);
-   gRenderBackend.RenderCopy();
+   if (pSurface->w > gTextureRect.w || pSurface->h > gTextureRect.h
+#if PAL_HAS_GLSL
+	   || gConfig.fEnableGLSL
+#endif
+   )
+   {
+	   SDL_BlitScaled(pSurface, NULL, gpScreenReal, NULL);
+	   gRenderBackend.RenderCopy();
+   }
+   else
+   {
+      int textureW, textureH;
+
+      gTextureZoomRect.x = gTextureRect.x * (gTextureRect.w - pSurface->w) / gTextureRect.w;
+      gTextureZoomRect.y = gTextureRect.y * (gTextureRect.h - pSurface->h) / gTextureRect.h;
+      gTextureZoomRect.w = (gTextureRect.w + 2 * gTextureRect.x) * pSurface->w / gTextureRect.w;
+      gTextureZoomRect.h = (gTextureRect.h + 2 * gTextureRect.y) * pSurface->h / gTextureRect.h;
+
+      textureW = gTextureRect.w;
+      textureH = gTextureRect.h;
+      gTextureRect.w = pSurface->w;
+      gTextureRect.h = pSurface->h;
+
+#if defined(PYRA)
+      VIDEO_Platform_Blit_15_32(pSurface, gpScreenReal);
+#else
+      SDL_BlitSurface(pSurface, NULL, gpScreenReal, NULL);
+#endif
+      gRenderBackend.RenderCopy();
+
+      gTextureZoomRect.w = 0;
+      gTextureRect.w = textureW;
+      gTextureRect.h = textureH;
+   }
 #elif defined(PANDORA)
    if (pSurface->h != gpScreenFinal->h)
    {

@@ -29,7 +29,7 @@
 #include "midi.h"
 #include "aviplay.h"
 #include <math.h>
-#ifdef PANDORA
+#if defined(PANDORA) || defined(PYRA)
 #include <arm_neon.h>
 #endif
 
@@ -81,7 +81,7 @@ AUDIO_MixNative(
 	int        samples
 )
 {
-#ifdef PANDORA
+#if defined(PANDORA) || defined(PYRA)
 	for (; samples >= 8; samples -= 8)
 	{
 		vst1q_s16(dst, vqaddq_s16(vld1q_s16(src), vld1q_s16(dst)));
@@ -137,7 +137,7 @@ AUDIO_AdjustVolume(
 {
 	if (iVolume == SDL_MIX_MAXVOLUME) return;
 	if (iVolume == 0) { memset(srcdst, 0, samples << 1); return; }
-#if defined(PANDORA) && (SDL_MIX_MAXVOLUME == 128)
+#if (defined(PANDORA) || defined(PYRA)) && (SDL_MIX_MAXVOLUME == 128)
 	const int16x4_t iVolumex4 = vdup_n_s16(iVolume);
 	const int32x4_t iZerox4 = vmovq_n_s32(0);
 	for (; samples >= 4; samples -= 4)
@@ -396,8 +396,10 @@ AUDIO_OpenDevice(
 		   gAudioDevice.pMusPlayer = TIMIDITY_Init();
 	   else if (gConfig.eMIDISynth == SYNTH_TINYSOUNDFONT)
 		   gAudioDevice.pMusPlayer = TSF_Init();
+#if PAL_HAS_WILDMIDI
 	   else if (gConfig.eMIDISynth == SYNTH_WILDMIDI)
 		   gAudioDevice.pMusPlayer = WILDMIDI_Init();
+#endif
 	   break;
    default:
 	   break;

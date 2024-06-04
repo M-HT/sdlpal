@@ -3,6 +3,44 @@
 
 const char *gSdlpalCfgFilename;
 
+static int input_event_filter(const SDL_Event *lpEvent, volatile PALINPUTSTATE *state)
+{
+    if (lpEvent->type == SDL_KEYDOWN)
+    {
+        if ((lpEvent->key.keysym.mod & KMOD_ALT) && (lpEvent->key.keysym.sym == SDLK_x))
+        {
+            PAL_Shutdown(0);
+        }
+        switch (lpEvent->key.keysym.sym)
+        {
+        case SDLK_INSERT:
+            if (gpGlobals->fInBattle)
+            {
+                g_InputState.dwKeyPress |= kKeyRepeat;
+            }
+            else
+            {
+                g_InputState.dwKeyPress |= kKeyPgUp;
+            }
+            break;
+        case SDLK_DELETE:
+            if (gpGlobals->fInBattle)
+            {
+                g_InputState.dwKeyPress |= kKeyAuto;
+            }
+            else
+            {
+                g_InputState.dwKeyPress |= kKeyPgDn;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    return 0;
+}
+
 BOOL
 UTIL_GetScreenSize(
    DWORD *pdwScreenWidth,
@@ -53,8 +91,9 @@ UTIL_Platform_Init(
    char* argv[]
 )
 {
-   gConfig.fLaunchSetting = FALSE;
-   return 0;
+    PAL_RegisterInputFilter(NULL, input_event_filter, NULL);
+    gConfig.fLaunchSetting = FALSE;
+    return 0;
 }
 
 VOID

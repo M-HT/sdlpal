@@ -20,7 +20,7 @@
 //
 
 #include "main.h"
-#ifdef PANDORA
+#if defined(PANDORA) || defined(PYRA)
 #include <arm_neon.h>
 #endif
 
@@ -62,7 +62,7 @@ PAL_BattleDrawBackground(
    pSrc = g_Battle.lpBackground->pixels;
    pDst = g_Battle.lpSceneBuf->pixels;
 
-#ifdef PANDORA
+#if defined(PANDORA) || defined(PYRA)
    int8x16_t iColorShiftx16 = vdupq_n_s8(g_Battle.sBackgroundColorShift);
    for (i = g_Battle.lpSceneBuf->pitch * g_Battle.lpSceneBuf->h; i != 0; i -= 16)
    {
@@ -165,7 +165,7 @@ PAL_BattleDrawEnemySprites(
       //
       pos = PAL_XY(PAL_X(pos) + RandomLong(-1, 1), PAL_Y(pos));
    }
-      
+
    pos = PAL_XY(PAL_X(pos) - PAL_RLEGetWidth(PAL_SpriteGetFrame(g_Battle.rgEnemy[wEnemyIndex].lpSprite, g_Battle.rgEnemy[wEnemyIndex].wCurrentFrame)) / 2,
       PAL_Y(pos) - PAL_RLEGetHeight(PAL_SpriteGetFrame(g_Battle.rgEnemy[wEnemyIndex].lpSprite, g_Battle.rgEnemy[wEnemyIndex].wCurrentFrame)));
 

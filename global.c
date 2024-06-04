@@ -798,7 +798,7 @@ PAL_SaveGame_Common(
 
 	fwrite(s, i, 1, fp);
 	fclose(fp);
-#if defined(PANDORA) || defined(GP2X)
+#if defined(PANDORA) || defined(PYRA) || defined(GP2X)
 	sync();
 #endif
 }
